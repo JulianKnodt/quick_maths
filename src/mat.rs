@@ -1,6 +1,7 @@
+#![allow(clippy::many_single_char_names)]
 use crate::{
   quat::Quat,
-  vec::{Vec2, Vec3, Vector},
+  vec::{Vec2, Vec3, Vec4, Vector},
 };
 use num::{Float, One, Zero};
 use std::{
@@ -16,11 +17,11 @@ where
   [Vector<T, M>; N]: LengthAtMost32;
 
 /// 4x4 Matrix
-pub type Matrix4<T> = Matrix<T, 4, 4>;
+pub type Mat4<T> = Matrix<T, 4, 4>;
 /// 3x3 Matrix
-pub type Matrix3<T> = Matrix<T, 3, 3>;
+pub type Mat3<T> = Matrix<T, 3, 3>;
 /// 2x2 Matrix
-pub type Matrix2<T> = Matrix<T, 2, 2>;
+pub type Mat2<T> = Matrix<T, 2, 2>;
 
 impl<T: Float, const M: usize, const N: usize> Matrix<T, M, N>
 where
@@ -31,6 +32,18 @@ where
   pub fn dot(&self, vec: &Vector<T, N>) -> Vector<T, M> {
     let mut out: Vector<T, M> = Vector::zero();
     for i in 0..N {
+      out = out + self.0[i] * vec[i];
+    }
+    out
+  }
+  pub(crate) fn qdot<const Q: usize>(&self, vec: &Vector<T, Q>) -> Vector<T, M>
+  where
+    [T; Q]: LengthAtMost32, {
+    // Check that Q is less than or equal to N.
+    // We allow smaller values so we can multiply smaller vectors efficiently
+    assert!(Q <= N);
+    let mut out: Vector<T, M> = Vector::zero();
+    for i in 0..Q {
       out = out + self.0[i] * vec[i];
     }
     out
@@ -187,7 +200,8 @@ where
   fn is_zero(&self) -> bool { self.0.iter().any(|c| c.is_zero()) }
 }
 
-impl<T: Float> Matrix3<T> {
+impl<T: Float> Mat3<T> {
+  pub fn new(c0: Vec3<T>, c1: Vec3<T>, c2: Vec3<T>) -> Self { Matrix([c0, c1, c2]) }
   /// Computes the determinant of this matrix
   pub fn det(&self) -> T {
     let &Matrix([Vector([e00, e01, e02]), Vector([e10, e11, e12]), Vector([e20, e21, e22])]) = self;
@@ -229,7 +243,7 @@ impl<T: Float> Matrix3<T> {
     Self([Vector([i, o, o]), Vector([o, j, o]), Vector([o, o, k])])
   }
   /// Translation operator for 2 space
-  pub fn trans(by: &Vec2<T>) -> Self {
+  pub fn translate(by: &Vec2<T>) -> Self {
     let &Vector([i, j]) = by;
     let o = T::zero();
     let l = T::one();
@@ -278,7 +292,7 @@ impl<T: Float> Matrix3<T> {
   }
 }
 
-impl<T: Float> Matrix2<T> {
+impl<T: Float> Mat2<T> {
   /// Computes the determinant of this matrix
   pub fn det(&self) -> T {
     let &Matrix([Vector([e00, e01]), Vector([e10, e11])]) = self;
@@ -330,7 +344,10 @@ fn argmax<T: Float>(v: &[T]) -> usize {
     .0
 }
 
-impl<T: Float> Matrix4<T> {
+impl<T: Float> Mat4<T> {
+  pub fn new(c0: Vec4<T>, c1: Vec4<T>, c2: Vec4<T>, c3: Vec4<T>) -> Self {
+    Matrix([c0, c1, c2, c3])
+  }
   /// Returns a translation matrix by t
   pub fn translate(t: Vec3<T>) -> Self {
     let l = T::one();
@@ -598,7 +615,6 @@ where
   curried_elemwise_impl!(powf, T::powf);
   pub fn powi(&self, v: i32) -> Self { self.apply_fn(|u| u.powi(v)) }
   curried_elemwise_impl!(log, T::log);
-
 
   // Min/max stuff
   curried_elemwise_impl!(max, T::max);

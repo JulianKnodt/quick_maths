@@ -20,6 +20,10 @@ pub mod vec;
 #[doc(inline)]
 pub use vec::*;
 
+pub mod transform;
+#[doc(inline)]
+pub use transform::*;
+
 /// Convenience trait to make all floats also debug
 pub mod num;
 #[doc(inline)]

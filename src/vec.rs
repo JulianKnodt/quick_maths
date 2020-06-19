@@ -1,3 +1,4 @@
+#![allow(clippy::many_single_char_names)]
 use num::{Float, One, Zero};
 use std::{
   array::LengthAtMost32,
@@ -20,9 +21,16 @@ impl<T: Float + Zero, const N: usize> Vector<T, N>
 where
   [T; N]: LengthAtMost32,
 {
+  /// Creates a vector of the value v (every element = v).
+  pub fn of(v: T) -> Self { Vector([v; N]) }
+  /// Takes the dot product of two vectors
   pub fn dot(&self, o: &Self) -> T { (0..N).fold(T::zero(), |acc, n| acc + self.0[n] * o.0[n]) }
+  /// Computes the sqr_magnitude of the vector
   pub fn sqr_magn(&self) -> T { self.dot(self) }
+  /// Takes the magnitude of the vector
   pub fn magn(&self) -> T { self.sqr_magn().sqrt() }
+  /// Returns a unit vector in the same direction as self.
+  /// Consider division instead of calling this method if you need efficiency.
   pub fn norm(&self) -> Self { *self / self.magn() }
   pub fn cos_similarity(&self, o: &Self) -> T { self.dot(o) / (self.magn() * o.magn()) }
   pub fn reflect(&self, across: &Self) -> Self {
@@ -37,7 +45,7 @@ where
     let cos_r = discrim.sqrt();
     Some(*self * eta - *norm * (eta * cos_l + cos_r))
   }
-  /// Applies this function to every output function
+  /// Applies this function to every vector value.
   #[inline]
   pub fn apply_fn<F, S>(self, mut f: F) -> Vector<S, N>
   where
@@ -50,6 +58,7 @@ where
     }
     out
   }
+  /// Computes a vector from a list of strings.
   pub fn from_str_radix(strs: [&str; N], radix: u32) -> Result<Self, T::FromStrRadixErr> {
     let mut out = Self::zero();
     for i in 0..N {
@@ -57,7 +66,9 @@ where
     }
     Ok(out)
   }
+  /// Linearly interpolates from self to v according to alpha, where 0 => self, and 1 => v.
   pub fn lerp(&self, v: &Self, alpha: T) -> Self { *self * (T::one() - alpha) + *v * alpha }
+  /// Computes the max component of this vector
   pub fn max_component(&self) -> usize {
     let mut max_pos = 0;
     for i in 1..N {
@@ -67,6 +78,7 @@ where
     }
     max_pos
   }
+  /// Computes the minimum component of this vector
   pub fn min_component(&self) -> usize {
     let mut min_pos = 0;
     for i in 1..N {
@@ -76,12 +88,15 @@ where
     }
     min_pos
   }
+  /// Clamps self between min and max
   pub fn clamp(&mut self, min: T, max: T) {
     for i in 0..N {
       self[i] = self[i].min(max).max(min);
     }
   }
   pub fn dist(&self, o: &Self) -> T { (*self - *o).magn() }
+  /// Zero-extend this vector to a larger vector.
+  /// Must increase the size of the vector or keep it the same size.
   pub fn zxtend<const M: usize>(&self) -> Vector<T, M>
   where
     [T; M]: LengthAtMost32, {
@@ -92,6 +107,8 @@ where
     }
     out
   }
+  /// Shrink this vector to a lower dimension
+  /// Must lower or keep the same size.
   pub fn reduce<const M: usize>(&self) -> Vector<T, M>
   where
     [T; M]: LengthAtMost32, {
@@ -106,6 +123,7 @@ where
 
 impl<T: Float> Vec3<T> {
   pub fn new(a: T, b: T, c: T) -> Self { Vector([a, b, c]) }
+  /// Takes the cross product of self with other
   pub fn cross(&self, o: &Self) -> Self {
     let [a, b, c] = self.0;
     let [x, y, z] = o.0;
@@ -114,6 +132,24 @@ impl<T: Float> Vec3<T> {
   pub fn sided(&self, o: &Self, normal: &Self) -> bool {
     self.cross(o).dot(normal).is_sign_positive()
   }
+
+  /// Returns the homogeneous form of this vector.
+  pub fn homogeneous(&self) -> Vec4<T> {
+    let &Vector([x, y, z]) = self;
+    Vec4::new(x, y, z, T::one())
+  }
+
+  pub fn homogenize(&self) -> Vec2<T> {
+    let &Vector([x, y, z]) = self;
+    Vec2::new(x / z, y / z)
+  }
+
+  /// X component of this vector
+  pub fn x(&self) -> T { self[0] }
+  /// Y component of this vector
+  pub fn y(&self) -> T { self[1] }
+  /// Z component of this vector
+  pub fn z(&self) -> T { self[2] }
 }
 
 impl<T: Float> Vec2<T> {
@@ -131,10 +167,24 @@ impl<T: Float> Vec2<T> {
     let [i, j] = self.0;
     Vec2::new(j, i)
   }
+  pub fn x(&self) -> T { self[0] }
+  pub fn y(&self) -> T { self[1] }
+  pub fn homogeneous(&self) -> Vec3<T> {
+    let [i, j] = self.0;
+    Vec3::new(i, j, T::one())
+  }
 }
 
 impl<T: Float> Vec4<T> {
   pub fn new(a: T, b: T, c: T, w: T) -> Self { Vector([a, b, c, w]) }
+  pub fn x(&self) -> T { self[0] }
+  pub fn y(&self) -> T { self[1] }
+  pub fn z(&self) -> T { self[2] }
+  pub fn w(&self) -> T { self[3] }
+  pub fn homogenize(&self) -> Vec3<T> {
+    let &Vector([x, y, z, w]) = self;
+    Vec3::new(x / w, y / w, z / w)
+  }
 }
 
 impl<T: Copy, const N: usize> Vector<T, N>
@@ -191,7 +241,7 @@ where
   [T; N]: LengthAtMost32,
 {
   fn zero() -> Self { Vector([T::zero(); N]) }
-  fn is_zero(&self) -> bool { self.any(|v| v.is_zero()) }
+  fn is_zero(&self) -> bool { self.all(|v| v.is_zero()) }
 }
 
 impl<T, const N: usize> Index<usize> for Vector<T, N>
@@ -371,7 +421,6 @@ where
   curried_elemwise_impl!(powf, T::powf);
   pub fn powi(&self, v: i32) -> Self { self.apply_fn(|u| u.powi(v)) }
   curried_elemwise_impl!(log, T::log);
-
 
   // Min/max stuff
   curried_elemwise_impl!(max, T::max);
