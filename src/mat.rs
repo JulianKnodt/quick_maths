@@ -15,8 +15,11 @@ where
   [T; M]: LengthAtMost32,
   [Vector<T, M>; N]: LengthAtMost32;
 
+/// 4x4 Matrix
 pub type Matrix4<T> = Matrix<T, 4, 4>;
+/// 3x3 Matrix
 pub type Matrix3<T> = Matrix<T, 3, 3>;
+/// 2x2 Matrix
 pub type Matrix2<T> = Matrix<T, 2, 2>;
 
 impl<T: Float, const M: usize, const N: usize> Matrix<T, M, N>
@@ -496,6 +499,7 @@ def_scalar_op!(Add<T>, add, +);
 def_scalar_op!(Sub<T>, sub, -);
 def_scalar_op!(Mul<T>, mul, *);
 def_scalar_op!(Div<T>, div, /);
+
 /*
 // XXX Commented out not because it's broken but because I shifted it from the old matrix code
 #[test]

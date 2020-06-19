@@ -1,5 +1,5 @@
 [package]
-name = "linalg"
+name = "quick_maths"
 version = "0.1.0"
 authors = ["julianknodt <julianknodt@gmail.com>"]
 edition = "2018"
@@ -8,6 +8,4 @@ edition = "2018"
 
 [dependencies]
 num = "0.2.0"
-rand = "0.7.0"
-rand_distr = "0.2.1"
 
