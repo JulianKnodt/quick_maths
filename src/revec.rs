@@ -1,0 +1,298 @@
+use num::{Float, One, Zero};
+use std::{
+  array::LengthAtMost32,
+  borrow::{Borrow, BorrowMut},
+  ops::{
+    Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Rem, RemAssign, Sub,
+    SubAssign,
+  },
+};
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct Vector<T, const N: usize>(pub [T; N])
+where
+  [T; N]: LengthAtMost32;
+pub type Vec2<T> = Vector<T, 2>;
+pub type Vec3<T> = Vector<T, 3>;
+pub type Vec4<T> = Vector<T, 4>;
+
+impl<T: Float + Zero, const N: usize> Vector<T, N>
+where
+  [T; N]: LengthAtMost32,
+{
+  pub fn dot(&self, o: &Self) -> T { (0..N).fold(T::zero(), |acc, n| acc + self.0[n] * o.0[n]) }
+  pub fn sqr_magn(&self) -> T { self.dot(self) }
+  pub fn magn(&self) -> T { self.sqr_magn().sqrt() }
+  pub fn norm(&self) -> Self { *self / self.magn() }
+  pub fn cos_similarity(&self, o: &Self) -> T { self.dot(o) / (self.magn() * o.magn()) }
+  pub fn reflect(&self, across: &Self) -> Self {
+    *self - (*across) * self.dot(across) * (T::one() + T::one())
+  }
+  pub fn refract(&self, norm: &Self, eta: T) -> Option<Self> {
+    let cos_l = self.dot(norm);
+    let discrim = T::one() - eta * eta * (T::one() - cos_l * cos_l);
+    if discrim.is_sign_negative() {
+      return None;
+    }
+    let cos_r = discrim.sqrt();
+    Some(*self * eta - *norm * (eta * cos_l + cos_r))
+  }
+  pub fn apply_fn<F, S>(self, mut f: F) -> Vector<S, N>
+  where
+    F: FnMut(T) -> S,
+    S: Float,
+    [S; N]: LengthAtMost32, {
+    let mut out: Vector<S, N> = Vector::zero();
+    for i in 0..N {
+      out[i] = f(self[i]);
+    }
+    out
+  }
+  pub fn from_str_radix(strs: [&str; N], radix: u32) -> Result<Self, T::FromStrRadixErr> {
+    let mut out = Self::zero();
+    for i in 0..N {
+      out[i] = T::from_str_radix(strs[i], radix)?;
+    }
+    Ok(out)
+  }
+  pub fn lerp(&self, v: &Self, alpha: T) -> Self { *self * (T::one() - alpha) + *v * alpha }
+  pub fn max_component(&self) -> usize {
+    let mut max_pos = 0;
+    for i in 1..N {
+      if self[i] > self[max_pos] {
+        max_pos = i;
+      }
+    }
+    max_pos
+  }
+  pub fn min_component(&self) -> usize {
+    let mut min_pos = 0;
+    for i in 1..N {
+      if self[i] < self[min_pos] {
+        min_pos = i;
+      }
+    }
+    min_pos
+  }
+  pub fn clamp(&mut self, min: T, max: T) {
+    for i in 0..N {
+      self[i] = self[i].min(max).max(min);
+    }
+  }
+  pub fn dist(&self, o: &Self) -> T { (*self - *o).magn() }
+  pub fn zxtend<const M: usize>(&self) -> Vector<T, M>
+  where
+    [T; M]: LengthAtMost32, {
+    assert!(M >= N);
+    let mut out: Vector<T, M> = Vector::zero();
+    for i in 0..N {
+      out[i] = self[i];
+    }
+    out
+  }
+  pub fn reduce<const M: usize>(&self) -> Vector<T, M>
+  where
+    [T; M]: LengthAtMost32, {
+    assert!(M <= N);
+    let mut out: Vector<T, M> = Vector::zero();
+    for i in 0..M {
+      out[i] = self[i];
+    }
+    out
+  }
+}
+
+impl<T: Float> Vec3<T> {
+  pub fn new(a: T, b: T, c: T) -> Self { Vector([a, b, c]) }
+  pub fn cross(&self, o: &Self) -> Self {
+    let [a, b, c] = self.0;
+    let [x, y, z] = o.0;
+    Vector([b * z - c * y, c * x - a * z, a * y - b * z])
+  }
+  pub fn sided(&self, o: &Self, normal: &Self) -> bool {
+    self.cross(o).dot(normal).is_sign_positive()
+  }
+}
+
+impl<T: Float> Vec2<T> {
+  pub fn new(a: T, b: T) -> Self { Vector([a, b]) }
+  pub fn signed_angle(&self, dst: &Self) -> T {
+    let [i, j] = self.0;
+    let [x, y] = dst.0;
+    (i * y - j * x).atan2(self.dot(dst))
+  }
+  pub fn perp(&self) -> Self {
+    let [i, j] = self.0;
+    Vec2::new(j, -i)
+  }
+  pub fn flip(&self) -> Self {
+    let [i, j] = self.0;
+    Vec2::new(j, i)
+  }
+}
+
+impl<T: Float> Vec4<T> {
+  pub fn new(a: T, b: T, c: T, w: T) -> Self { Vector([a, b, c, w]) }
+}
+
+impl<T: Copy, const N: usize> Vector<T, N>
+where
+  [T; N]: LengthAtMost32,
+{
+  pub fn any<F>(&self, f: F) -> bool
+  where
+    F: FnMut(&T) -> bool, {
+    self.0.iter().any(f)
+  }
+  pub fn all<F>(&self, f: F) -> bool
+  where
+    F: FnMut(&T) -> bool, {
+    self.0.iter().all(f)
+  }
+}
+
+// Trait implementations for convenience
+
+impl<T, const N: usize> AsRef<[T]> for Vector<T, N>
+where
+  [T; N]: LengthAtMost32,
+{
+  fn as_ref(&self) -> &[T] { &self.0 }
+}
+
+impl<T, const N: usize> Borrow<[T]> for Vector<T, N>
+where
+  [T; N]: LengthAtMost32,
+{
+  fn borrow(&self) -> &[T] { &self.0 }
+}
+
+impl<T, const N: usize> BorrowMut<[T]> for Vector<T, N>
+where
+  [T; N]: LengthAtMost32,
+{
+  fn borrow_mut(&mut self) -> &mut [T] { &mut self.0 }
+}
+
+// Op implementations
+
+impl<T: Float, const N: usize> One for Vector<T, N>
+where
+  [T; N]: LengthAtMost32,
+{
+  fn one() -> Self { Vector([T::one(); N]) }
+  fn is_one(&self) -> bool { self.all(|v| v.is_one()) }
+}
+
+impl<T: Float, const N: usize> Zero for Vector<T, N>
+where
+  [T; N]: LengthAtMost32,
+{
+  fn zero() -> Self { Vector([T::zero(); N]) }
+  fn is_zero(&self) -> bool { self.any(|v| v.is_zero()) }
+}
+
+impl<T, const N: usize> Index<usize> for Vector<T, N>
+where
+  [T; N]: LengthAtMost32,
+{
+  type Output = T;
+  fn index(&self, i: usize) -> &Self::Output { &self.0[i] }
+}
+
+impl<T, const N: usize> IndexMut<usize> for Vector<T, N>
+where
+  [T; N]: LengthAtMost32,
+{
+  fn index_mut(&mut self, i: usize) -> &mut Self::Output { &mut self.0[i] }
+}
+
+impl<T: Neg<Output = T> + Copy, const N: usize> Neg for Vector<T, N>
+where
+  [T; N]: LengthAtMost32,
+{
+  type Output = Self;
+  fn neg(mut self) -> Self::Output {
+    for i in 0..N {
+      self.0[i] = -self.0[i];
+    }
+    self
+  }
+}
+
+macro_rules! vec_op {
+  ($t: ident, $func: ident, $op: tt) => {
+    impl<T: Float, const N: usize> $t for Vector<T, N>
+    where
+      [T; N]: LengthAtMost32,
+    {
+      type Output = Self;
+      fn $func(mut self, o: Self) -> Self::Output {
+        for i in 0..N {
+          self.0[i] = self.0[i] $op o.0[i];
+        }
+        self
+      }
+    }
+  };
+}
+
+vec_op!(Add, add, +);
+vec_op!(Mul, mul, *);
+vec_op!(Sub, sub, -);
+vec_op!(Div, div, /);
+vec_op!(Rem, rem, %);
+
+macro_rules! scalar_op {
+  ($t: ident, $func: ident, $op: tt) => {
+    impl<T: Float, const N: usize> $t<T> for Vector<T, N>
+    where
+      [T; N]: LengthAtMost32,
+    {
+      type Output = Self;
+      fn $func(mut self, o: T) -> Self::Output {
+        for i in 0..N {
+          self.0[i] = self.0[i] $op o;
+        }
+        self
+      }
+    }
+  };
+}
+
+scalar_op!(Add, add, +);
+scalar_op!(Mul, mul, *);
+scalar_op!(Sub, sub, -);
+scalar_op!(Div, div, /);
+scalar_op!(Rem, rem, %);
+
+macro_rules! assign_op {
+  ($t: ident, $func: ident, $op: tt) => {
+    impl<T: $t + Copy, const N: usize> $t<T> for Vector<T, N>
+    where
+      [T; N]: LengthAtMost32,
+    {
+      fn $func(&mut self, o: T) {
+        for i in 0..N {
+          self.0[i] $op o;
+        }
+      }
+    }
+    impl<T: $t + Copy, const N: usize> $t for Vector<T, N>
+    where
+      [T; N]: LengthAtMost32,
+    {
+      fn $func(&mut self, o: Self) {
+        for i in 0..N {
+          self.0[i] $op o.0[i];
+        }
+      }
+    }
+  };
+}
+
+assign_op!(AddAssign, add_assign, +=);
+assign_op!(SubAssign, sub_assign, -=);
+assign_op!(MulAssign, mul_assign, *=);
+assign_op!(DivAssign, div_assign, /=);
+assign_op!(RemAssign, rem_assign, %=);
