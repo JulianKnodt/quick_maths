@@ -1,8 +1,9 @@
 use crate::{
   num::Float,
-  revec::{Vec2, Vec3},
+  vec::{Vec3, Vector},
 };
 use std::{
+  array::LengthAtMost32,
   marker::PhantomData,
   ops::{Add, Mul, Neg},
 };
@@ -34,7 +35,10 @@ where
   pub fn step(&mut self, t: T) { self.pos = self.pos + (self.dir * t) }
 }
 
-impl<T: Float> Ray<T, Vec2<T>> {
+impl<T: Float, const N: usize> Ray<T, Vector<T, N>>
+where
+  [T; N]: LengthAtMost32,
+{
   /// Sets the length of this ray to the given amount
   pub fn set_length(&mut self, t: T) { self.dir = self.dir.norm() * t; }
 }

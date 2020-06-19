@@ -1,6 +1,6 @@
 use crate::{
   num::Float,
-  revec::{Vec3, Vec4},
+  vec::{Vec3, Vec4},
 };
 
 pub type Quat<T> = Vec4<T>;
