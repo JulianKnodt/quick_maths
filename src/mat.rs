@@ -524,3 +524,87 @@ fn test_lu_decomp() {
   assert!((x_p - x).sqr_magn() < 0.00001);
 }
 */
+macro_rules! elemwise_impl {
+  ($func: ident, $call: path, $name: expr) => {
+    #[doc="Element-wise "]
+    #[doc=$name]
+    #[doc="."]
+    pub fn $func(&self) -> Self { self.apply_fn($call) }
+  };
+  ($func: ident, $call: path) => {
+    elemwise_impl!($func, $call, stringify!($func));
+  };
+}
+
+macro_rules! curried_elemwise_impl {
+  ($func: ident, $call: path, $name: expr) => {
+    #[doc="Element-wise "]
+    #[doc=$name]
+    #[doc="."]
+    pub fn $func(&self, v: T) -> Self { self.apply_fn(|u| $call(u, v)) }
+  };
+  ($func: ident, $call: path) => {
+    curried_elemwise_impl!($func, $call, stringify!($func));
+  };
+}
+impl<T: Float, const M: usize, const N: usize> Matrix<T, M, N>
+where
+  [T; M]: LengthAtMost32,
+  [T; N]: LengthAtMost32,
+  [Vector<T, M>; N]: LengthAtMost32,
+{
+  // Trigonometric stuff
+  elemwise_impl!(cos, T::cos);
+  elemwise_impl!(sin, T::sin);
+  elemwise_impl!(tan, T::tan);
+
+  elemwise_impl!(acos, T::acos);
+  elemwise_impl!(asin, T::asin);
+  elemwise_impl!(atan, T::atan);
+
+  elemwise_impl!(acosh, T::acosh);
+  elemwise_impl!(asinh, T::asinh);
+  elemwise_impl!(atanh, T::atanh);
+  curried_elemwise_impl!(atan2, T::atan2);
+  curried_elemwise_impl!(hypot, T::hypot);
+
+  // Rounding stuff
+  elemwise_impl!(ceil, T::ceil);
+  elemwise_impl!(floor, T::floor);
+  elemwise_impl!(round, T::round);
+
+  // Decomposition stuff
+  elemwise_impl!(fract, T::fract);
+  elemwise_impl!(trunc, T::trunc);
+
+  // Sign value stuff
+  elemwise_impl!(abs, T::abs);
+  curried_elemwise_impl!(abs_sub, T::abs_sub);
+  elemwise_impl!(signum, T::signum);
+
+  // Reciprocal
+  elemwise_impl!(recip, T::recip);
+
+  // Logarithmic stuff
+  elemwise_impl!(log2, T::log2);
+  elemwise_impl!(log10, T::log10);
+  elemwise_impl!(ln, T::ln);
+  elemwise_impl!(ln_1p, T::ln_1p);
+  elemwise_impl!(exp, T::exp);
+  elemwise_impl!(exp2, T::exp2);
+  elemwise_impl!(exp_m1, T::exp_m1);
+  elemwise_impl!(sqrt, T::sqrt);
+  elemwise_impl!(cbrt, T::cbrt);
+  curried_elemwise_impl!(powf, T::powf);
+  pub fn powi(&self, v: i32) -> Self { self.apply_fn(|u| u.powi(v)) }
+  curried_elemwise_impl!(log, T::log);
+
+
+  // Min/max stuff
+  curried_elemwise_impl!(max, T::max);
+  curried_elemwise_impl!(min, T::min);
+
+  // Degree related stuff
+  elemwise_impl!(to_degrees, T::to_degrees);
+  elemwise_impl!(to_radians, T::to_radians);
+}
