@@ -10,7 +10,7 @@ use std::{
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Vector<T, const N: usize>(pub [T; N])
+pub struct Vector<T=f32, const N: usize>(pub [T; N])
 where
   [T; N]: LengthAtMost32;
 pub type Vec2<T> = Vector<T, 2>;

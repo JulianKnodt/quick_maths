@@ -11,7 +11,7 @@ use std::{
 
 /// A matrix, where each vector represents a column
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Matrix<T, const M: usize, const N: usize>(pub [Vector<T, M>; N])
+pub struct Matrix<T=f32, const M: usize, const N: usize>(pub [Vector<T, M>; N])
 where
   [T; M]: LengthAtMost32,
   [Vector<T, M>; N]: LengthAtMost32;

@@ -3,7 +3,7 @@ use num::One;
 use std::{array::LengthAtMost32, ops::Mul};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Transform<T, const N: usize>
+pub struct Transform<T=f32, const N: usize>
 where
   [T; N]: LengthAtMost32,
   [Vector<T, N>; N]: LengthAtMost32, {
