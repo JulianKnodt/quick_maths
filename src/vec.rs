@@ -9,13 +9,13 @@ use std::{
   },
 };
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Vector<T=f32, const N: usize>(pub [T; N])
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd)]
+pub struct Vector<T = f32, const N: usize>(pub [T; N])
 where
   [T; N]: LengthAtMost32;
-pub type Vec2<T> = Vector<T, 2>;
-pub type Vec3<T> = Vector<T, 3>;
-pub type Vec4<T> = Vector<T, 4>;
+pub type Vec2<T = f32> = Vector<T, 2>;
+pub type Vec3<T = f32> = Vector<T, 3>;
+pub type Vec4<T = f32> = Vector<T, 4>;
 
 impl<T: Float + Zero, const N: usize> Vector<T, N>
 where
@@ -118,6 +118,18 @@ where
       out[i] = self[i];
     }
     out
+  }
+
+  pub fn sift(&self, o: &Self) -> (Self, Self) {
+    let mut min = self.clone();
+    let mut max = o.clone();
+    for i in 0..N {
+      if self[i] > o[i] {
+        max[i] = self[i];
+        min[i] = o[i];
+      }
+    }
+    (min, max)
   }
 }
 

@@ -9,7 +9,7 @@ use std::{
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Ray<T=f32, V = Vec3<T>> {
+pub struct Ray<T = f32, V = Vec3<T>> {
   pub pos: V,
   pub dir: V,
   // It makes it much cleaner to declare structs using this

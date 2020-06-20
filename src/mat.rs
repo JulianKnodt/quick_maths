@@ -11,17 +11,17 @@ use std::{
 
 /// A matrix, where each vector represents a column
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Matrix<T=f32, const M: usize, const N: usize>(pub [Vector<T, M>; N])
+pub struct Matrix<T, const M: usize, const N: usize>(pub [Vector<T, M>; N])
 where
   [T; M]: LengthAtMost32,
   [Vector<T, M>; N]: LengthAtMost32;
 
 /// 4x4 Matrix
-pub type Mat4<T> = Matrix<T, 4, 4>;
+pub type Mat4<T = f32> = Matrix<T, 4, 4>;
 /// 3x3 Matrix
-pub type Mat3<T> = Matrix<T, 3, 3>;
+pub type Mat3<T = f32> = Matrix<T, 3, 3>;
 /// 2x2 Matrix
-pub type Mat2<T> = Matrix<T, 2, 2>;
+pub type Mat2<T = f32> = Matrix<T, 2, 2>;
 
 impl<T: Float, const M: usize, const N: usize> Matrix<T, M, N>
 where
