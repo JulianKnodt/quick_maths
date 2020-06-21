@@ -1,7 +1,7 @@
 [package]
 name = "quick_maths"
 documentation = "https://docs.rs/quick_maths/"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["julianknodt <julianknodt@gmail.com>"]
 edition = "2018"
 readme = "readme.md"
@@ -13,12 +13,14 @@ homepage = "https://github.com/JulianKnodt/quick_maths"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+default_f64 = []
+serialization=["serde"]
+
 [dependencies]
 num = "0.2.0"
 cfg-if = "0.1.10"
-
-[features]
-default_f64 = []
+serde = { version = "1.0", features = ["derive"], optional=true}
 
 [profile.release]
 lto = true

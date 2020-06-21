@@ -13,6 +13,7 @@ use std::{
 /// Vector over floats and a const-size.
 /// Often used through Vec2, Vec3, and Vec4 instead of the raw struct.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd)]
+#[cfg_attr(feature="serialization", derive(serde::Serialize, serde::Deserialize))]
 pub struct Vector<T = DefaultFloat, const N: usize>(pub [T; N])
 where
   [T; N]: LengthAtMost32;

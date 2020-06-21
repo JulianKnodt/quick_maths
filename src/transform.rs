@@ -5,6 +5,7 @@ use std::{array::LengthAtMost32, ops::Mul};
 /// Transform type which represents an easily invertible operator.
 /// i.e. rotation in 3D, translation, etc.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature="serialization", derive(serde::Serialize, serde::Deserialize))]
 pub struct Transform<T = DefaultFloat, const N: usize>
 where
   [T; N]: LengthAtMost32,

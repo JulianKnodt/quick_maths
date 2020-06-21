@@ -3,6 +3,7 @@ use crate::{
   vec::{Vec3, Vec4},
 };
 
+/// Quats are Vec4's with implicit imaginary first three terms.
 pub type Quat<T> = Vec4<T>;
 
 impl<T: Float> Quat<T> {

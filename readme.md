@@ -40,5 +40,4 @@ allows for easy usage of the library without worrying unless you need to.
 
 #### TODOs
 
-- Add serde support
 - Add benchmarks
