@@ -5,7 +5,7 @@ authors = ["julianknodt <julianknodt@gmail.com>"]
 edition = "2018"
 readme = "readme.md"
 license = "MIT"
-keywords = ["linear algbebra", "graphics"]
+keywords = ["math", "graphics", "vector", "matrix"]
 repository = "https://github.com/JulianKnodt/quick_maths"
 homepage = "https://github.com/JulianKnodt/quick_maths"
 
