@@ -2,6 +2,8 @@ use crate::{num::DefaultFloat, Float, Mat2, Mat3, Mat4, Matrix, Vec2, Vec3, Vec4
 use num::One;
 use std::{array::LengthAtMost32, ops::Mul};
 
+/// Transform type which represents an easily invertible operator.
+/// i.e. rotation in 3D, translation, etc.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Transform<T = DefaultFloat, const N: usize>
 where
@@ -13,9 +15,10 @@ where
   pub bkwd: Matrix<T, N, N>,
 }
 
+/// 3D transformation, where 4 represents the dimension of the matrix used.
 pub type Transform4<T = DefaultFloat> = Transform<T, 4>;
+/// 2D transformation, where 3 represents the dimension of the matrix used.
 pub type Transform3<T = DefaultFloat> = Transform<T, 3>;
-pub type Transform2<T = DefaultFloat> = Transform<T, 2>;
 
 impl<T: Float, const N: usize> Transform<T, N>
 where

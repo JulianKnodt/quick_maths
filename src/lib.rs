@@ -20,11 +20,13 @@ pub mod vec;
 #[doc(inline)]
 pub use vec::*;
 
+/// Invertible transforms based on
+/// http://www.pbr-book.org/3ed-2018/Geometry_and_Transformations/Transformations.html
 pub mod transform;
 #[doc(inline)]
 pub use transform::*;
 
-/// Convenience trait to make all floats also debug
+/// Convenience re-export of num-traits
 pub mod num;
 #[doc(inline)]
 pub use crate::num::*;

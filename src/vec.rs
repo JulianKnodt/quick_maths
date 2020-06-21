@@ -10,12 +10,19 @@ use std::{
   },
 };
 
+/// Vector over floats and a const-size.
+/// Often used through Vec2, Vec3, and Vec4 instead of the raw struct.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd)]
 pub struct Vector<T = DefaultFloat, const N: usize>(pub [T; N])
 where
   [T; N]: LengthAtMost32;
+
+/// 2D vector with default float type (f32).
 pub type Vec2<T = DefaultFloat> = Vector<T, 2>;
+/// 3D vector with default float type (f32).
 pub type Vec3<T = DefaultFloat> = Vector<T, 3>;
+/// 4D vector with default float type (f32).
+/// Often implicitly created by Vec3::homogeneous.
 pub type Vec4<T = DefaultFloat> = Vector<T, 4>;
 
 impl<T: Float + Zero, const N: usize> Vector<T, N>

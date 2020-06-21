@@ -11,7 +11,8 @@ cfg_if::cfg_if! {
   if #[cfg(feature="f64_default")] {
     pub type DefaultFloat=f64;
   } else {
-    /// Define the default float as f32
+    /// The default float used by all structures.
+    /// When constructing a vector and omitting the type, this will be used.
     pub type DefaultFloat=f32;
   }
 }
