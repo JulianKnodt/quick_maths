@@ -1,5 +1,7 @@
 # Quick Maths
 
+- Important note: this package is designed for nightly with const-generics.
+
 A basic package for vector and matrix arithmetic which uses rust's unstable const generic
 feature. I just need something that does math conveniently and don't want to have to deal with
 NDArray or the like...
