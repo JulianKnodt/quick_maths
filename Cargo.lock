@@ -100,7 +100,7 @@ dependencies = [
 
 [[package]]
 name = "quick_maths"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "cfg-if",
  "num",

@@ -20,7 +20,7 @@ serialization=["serde"]
 [dependencies]
 num = "0.2.0"
 cfg-if = "0.1.10"
-serde = { version = "1.0", features = ["derive"], optional=true}
+serde = { version = "1.0.113", features = ["derive"], optional=true}
 
 [profile.release]
 lto = true
