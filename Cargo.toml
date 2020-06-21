@@ -8,4 +8,7 @@ edition = "2018"
 
 [dependencies]
 num = "0.2.0"
+cfg-if = "0.1.10"
 
+[features]
+default_f64 = []

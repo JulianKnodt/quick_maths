@@ -1,4 +1,5 @@
 #![allow(clippy::many_single_char_names)]
+use crate::num::DefaultFloat;
 use num::{Float, One, Zero};
 use std::{
   array::LengthAtMost32,
@@ -10,12 +11,12 @@ use std::{
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd)]
-pub struct Vector<T = f32, const N: usize>(pub [T; N])
+pub struct Vector<T = DefaultFloat, const N: usize>(pub [T; N])
 where
   [T; N]: LengthAtMost32;
-pub type Vec2<T = f32> = Vector<T, 2>;
-pub type Vec3<T = f32> = Vector<T, 3>;
-pub type Vec4<T = f32> = Vector<T, 4>;
+pub type Vec2<T = DefaultFloat> = Vector<T, 2>;
+pub type Vec3<T = DefaultFloat> = Vector<T, 3>;
+pub type Vec4<T = DefaultFloat> = Vector<T, 4>;
 
 impl<T: Float + Zero, const N: usize> Vector<T, N>
 where

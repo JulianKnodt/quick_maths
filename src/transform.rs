@@ -1,9 +1,9 @@
-use crate::{Float, Mat2, Mat3, Mat4, Matrix, Vec2, Vec3, Vec4, Vector};
+use crate::{num::DefaultFloat, Float, Mat2, Mat3, Mat4, Matrix, Vec2, Vec3, Vec4, Vector};
 use num::One;
 use std::{array::LengthAtMost32, ops::Mul};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Transform<T = f32, const N: usize>
+pub struct Transform<T = DefaultFloat, const N: usize>
 where
   [T; N]: LengthAtMost32,
   [Vector<T, N>; N]: LengthAtMost32, {
@@ -13,9 +13,9 @@ where
   pub bkwd: Matrix<T, N, N>,
 }
 
-pub type Transform4<T> = Transform<T, 4>;
-pub type Transform3<T> = Transform<T, 3>;
-pub type Transform2<T> = Transform<T, 2>;
+pub type Transform4<T = DefaultFloat> = Transform<T, 4>;
+pub type Transform3<T = DefaultFloat> = Transform<T, 3>;
+pub type Transform2<T = DefaultFloat> = Transform<T, 2>;
 
 impl<T: Float, const N: usize> Transform<T, N>
 where
