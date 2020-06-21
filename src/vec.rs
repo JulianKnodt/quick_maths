@@ -443,3 +443,20 @@ where
   elemwise_impl!(to_degrees, T::to_degrees);
   elemwise_impl!(to_radians, T::to_radians);
 }
+
+#[test]
+fn example() {
+  let a = Vec3::of(0.0);
+  let b = a + 1.0;
+  let c = b.sin();
+  let _dot = b.dot(&c);
+
+  let x = c.x();
+  let y = c.y();
+  let z = c.z();
+
+  let Vector([i, j, k]) = c;
+  assert_eq!(x, i);
+  assert_eq!(y, j);
+  assert_eq!(z, k);
+}
