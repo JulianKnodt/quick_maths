@@ -4,16 +4,20 @@ use num::{Float, One, Zero};
 use std::{
   array::LengthAtMost32,
   borrow::{Borrow, BorrowMut},
+  mem::{forget, MaybeUninit},
   ops::{
-    Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Rem, RemAssign, Sub,
-    SubAssign,
+    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
+    Index, IndexMut, Mul, MulAssign, Neg, Not, Rem, RemAssign, Sub, SubAssign,
   },
 };
 
 /// Vector over floats and a const-size.
 /// Often used through Vec2, Vec3, and Vec4 instead of the raw struct.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd)]
-#[cfg_attr(feature="serialization", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serialization",
+  derive(serde::Serialize, serde::Deserialize)
+)]
 pub struct Vector<T = DefaultFloat, const N: usize>(pub [T; N])
 where
   [T; N]: LengthAtMost32;
@@ -26,12 +30,18 @@ pub type Vec3<T = DefaultFloat> = Vector<T, 3>;
 /// Often implicitly created by Vec3::homogeneous.
 pub type Vec4<T = DefaultFloat> = Vector<T, 4>;
 
-impl<T: Float + Zero, const N: usize> Vector<T, N>
+impl<T: Copy, const N: usize> Vector<T, N>
 where
   [T; N]: LengthAtMost32,
 {
   /// Creates a vector of the value v (every element = v).
   pub fn of(v: T) -> Self { Vector([v; N]) }
+}
+
+impl<T: Float + Zero, const N: usize> Vector<T, N>
+where
+  [T; N]: LengthAtMost32,
+{
   /// Takes the dot product of two vectors
   pub fn dot(&self, o: &Self) -> T { (0..N).fold(T::zero(), |acc, n| acc + self.0[n] * o.0[n]) }
   /// Computes the sqr_magnitude of the vector
@@ -59,13 +69,15 @@ where
   pub fn apply_fn<F, S>(self, mut f: F) -> Vector<S, N>
   where
     F: FnMut(T) -> S,
-    S: Float,
     [S; N]: LengthAtMost32, {
-    let mut out: Vector<S, N> = Vector::zero();
+    let mut out: [MaybeUninit<S>; N] = unsafe { MaybeUninit::uninit().assume_init() };
     for i in 0..N {
-      out[i] = f(self[i]);
+      out[i] = MaybeUninit::new(f(self[i]));
     }
-    out
+    let ptr = &mut out as *mut _ as *mut [S; N];
+    let res = unsafe { ptr.read() };
+    forget(out);
+    Vector(res)
   }
   /// Computes a vector from a list of strings.
   pub fn from_str_radix(strs: [&str; N], radix: u32) -> Result<Self, T::FromStrRadixErr> {
@@ -130,8 +142,8 @@ where
   }
 
   pub fn sift(&self, o: &Self) -> (Self, Self) {
-    let mut min = self.clone();
-    let mut max = o.clone();
+    let mut min = *self;
+    let mut max = *o;
     for i in 0..N {
       if self[i] > o[i] {
         max[i] = self[i];
@@ -139,6 +151,28 @@ where
       }
     }
     (min, max)
+  }
+}
+
+impl<const N: usize> Vector<bool, N>
+where
+  [bool; N]: LengthAtMost32,
+{
+  pub fn any(&self) -> bool {
+    for i in 0..N {
+      if self[i] {
+        return true;
+      }
+    }
+    false
+  }
+  pub fn all(&self) -> bool {
+    for i in 0..N {
+      if !self[i] {
+        return false;
+      }
+    }
+    true
   }
 }
 
@@ -173,8 +207,17 @@ impl<T: Float> Vec3<T> {
   pub fn z(&self) -> T { self[2] }
 }
 
-impl<T: Float> Vec2<T> {
+impl<T: Copy> Vec2<T> {
   pub fn new(a: T, b: T) -> Self { Vector([a, b]) }
+  pub fn x(&self) -> T { self[0] }
+  pub fn y(&self) -> T { self[1] }
+  pub fn flip(&self) -> Self {
+    let [i, j] = self.0;
+    Vec2::new(j, i)
+  }
+}
+
+impl<T: Float> Vec2<T> {
   pub fn signed_angle(&self, dst: &Self) -> T {
     let [i, j] = self.0;
     let [x, y] = dst.0;
@@ -184,12 +227,6 @@ impl<T: Float> Vec2<T> {
     let [i, j] = self.0;
     Vec2::new(j, -i)
   }
-  pub fn flip(&self) -> Self {
-    let [i, j] = self.0;
-    Vec2::new(j, i)
-  }
-  pub fn x(&self) -> T { self[0] }
-  pub fn y(&self) -> T { self[1] }
   pub fn homogeneous(&self) -> Vec3<T> {
     let [i, j] = self.0;
     Vec3::new(i, j, T::one())
@@ -205,22 +242,6 @@ impl<T: Float> Vec4<T> {
   pub fn homogenize(&self) -> Vec3<T> {
     let &Vector([x, y, z, w]) = self;
     Vec3::new(x / w, y / w, z / w)
-  }
-}
-
-impl<T: Copy, const N: usize> Vector<T, N>
-where
-  [T; N]: LengthAtMost32,
-{
-  pub fn any<F>(&self, f: F) -> bool
-  where
-    F: FnMut(&T) -> bool, {
-    self.0.iter().any(f)
-  }
-  pub fn all<F>(&self, f: F) -> bool
-  where
-    F: FnMut(&T) -> bool, {
-    self.0.iter().all(f)
   }
 }
 
@@ -254,7 +275,7 @@ where
   [T; N]: LengthAtMost32,
 {
   fn one() -> Self { Vector([T::one(); N]) }
-  fn is_one(&self) -> bool { self.all(|v| v.is_one()) }
+  fn is_one(&self) -> bool { self.0.iter().all(T::is_one) }
 }
 
 impl<T: Float, const N: usize> Zero for Vector<T, N>
@@ -262,7 +283,7 @@ where
   [T; N]: LengthAtMost32,
 {
   fn zero() -> Self { Vector([T::zero(); N]) }
-  fn is_zero(&self) -> bool { self.all(|v| v.is_zero()) }
+  fn is_zero(&self) -> bool { self.0.iter().all(T::is_zero) }
 }
 
 impl<T, const N: usize> Index<usize> for Vector<T, N>
@@ -293,18 +314,36 @@ where
   }
 }
 
+impl<T: Not<Output = T> + Copy, const N: usize> Not for Vector<T, N>
+where
+  [T; N]: LengthAtMost32,
+{
+  type Output = Self;
+  fn not(mut self) -> Self::Output {
+    for i in 0..N {
+      self.0[i] = !self.0[i];
+    }
+    self
+  }
+}
+
 macro_rules! vec_op {
   ($t: ident, $func: ident, $op: tt) => {
-    impl<T: Float, const N: usize> $t for Vector<T, N>
+    impl<T: $t + Copy, const N: usize> $t for Vector<T, N>
     where
       [T; N]: LengthAtMost32,
+      [<T as $t>::Output; N]: LengthAtMost32,
     {
-      type Output = Self;
-      fn $func(mut self, o: Self) -> Self::Output {
+      type Output = Vector<T::Output, N>;
+      fn $func(self, o: Self) -> Self::Output {
+        let mut out: [MaybeUninit<T::Output>; N] = unsafe { MaybeUninit::uninit().assume_init() };
         for i in 0..N {
-          self.0[i] = self.0[i] $op o.0[i];
+          out[i] = MaybeUninit::new(self[i] $op o[i]);
         }
-        self
+        let ptr = &mut out as *mut _ as *mut [T::Output; N];
+        let res = unsafe { ptr.read() };
+        forget(out);
+        Vector(res)
       }
     }
   };
@@ -316,18 +355,28 @@ vec_op!(Sub, sub, -);
 vec_op!(Div, div, /);
 vec_op!(Rem, rem, %);
 
+// Boolean operations
+vec_op!(BitAnd, bitand, &);
+vec_op!(BitOr, bitor, |);
+vec_op!(BitXor, bitxor, ^);
+
 macro_rules! scalar_op {
   ($t: ident, $func: ident, $op: tt) => {
-    impl<T: Float, const N: usize> $t<T> for Vector<T, N>
+    impl<T: $t + Copy, const N: usize> $t<T> for Vector<T, N>
     where
       [T; N]: LengthAtMost32,
+      [<T as $t>::Output; N]: LengthAtMost32,
     {
-      type Output = Self;
-      fn $func(mut self, o: T) -> Self::Output {
+      type Output = Vector<T::Output, N>;
+      fn $func(self, o: T) -> Self::Output {
+        let mut out: [MaybeUninit<T::Output>; N] = unsafe { MaybeUninit::uninit().assume_init() };
         for i in 0..N {
-          self.0[i] = self.0[i] $op o;
+          out[i] = MaybeUninit::new(self[i] $op o);
         }
-        self
+        let ptr = &mut out as *mut _ as *mut [T::Output; N];
+        let res = unsafe { ptr.read() };
+        forget(out);
+        Vector(res)
       }
     }
   };
@@ -338,6 +387,11 @@ scalar_op!(Mul, mul, *);
 scalar_op!(Sub, sub, -);
 scalar_op!(Div, div, /);
 scalar_op!(Rem, rem, %);
+
+// Boolean operations
+scalar_op!(BitAnd, bitand, &);
+scalar_op!(BitOr, bitor, |);
+scalar_op!(BitXor, bitxor, ^);
 
 macro_rules! assign_op {
   ($t: ident, $func: ident, $op: tt) => {
@@ -369,6 +423,11 @@ assign_op!(SubAssign, sub_assign, -=);
 assign_op!(MulAssign, mul_assign, *=);
 assign_op!(DivAssign, div_assign, /=);
 assign_op!(RemAssign, rem_assign, %=);
+
+// Boolean operations
+assign_op!(BitAndAssign, bitand_assign, &=);
+assign_op!(BitOrAssign, bitor_assign, |=);
+assign_op!(BitXorAssign, bitxor_assign, ^=);
 
 macro_rules! elemwise_impl {
   ($func: ident, $call: path, $name: expr) => {
@@ -425,6 +484,18 @@ where
   elemwise_impl!(abs, T::abs);
   curried_elemwise_impl!(abs_sub, T::abs_sub);
   elemwise_impl!(signum, T::signum);
+
+  pub fn is_sign_positive(&self) -> Vector<bool, N>
+  where
+    [bool; N]: LengthAtMost32, {
+    self.apply_fn(T::is_sign_positive)
+  }
+
+  pub fn is_sign_negative(&self) -> Vector<bool, N>
+  where
+    [bool; N]: LengthAtMost32, {
+    self.apply_fn(T::is_sign_negative)
+  }
 
   // Reciprocal
   elemwise_impl!(recip, T::recip);

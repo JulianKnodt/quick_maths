@@ -9,7 +9,10 @@ use std::{
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[cfg_attr(feature="serialization", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serialization",
+  derive(serde::Serialize, serde::Deserialize)
+)]
 pub struct Ray<T = f32, V = Vec3<T>> {
   pub pos: V,
   pub dir: V,

@@ -12,7 +12,10 @@ use std::{
 
 /// A matrix, where each vector represents a column
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[cfg_attr(feature="serialization", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+  feature = "serialization",
+  derive(serde::Serialize, serde::Deserialize)
+)]
 pub struct Matrix<T = DefaultFloat, const M: usize, const N: usize>(pub [Vector<T, M>; N])
 where
   [T; M]: LengthAtMost32,
