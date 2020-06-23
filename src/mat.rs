@@ -12,10 +12,6 @@ use std::{
 
 /// A matrix, where each vector represents a column
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[cfg_attr(
-  feature = "serialization",
-  derive(serde::Serialize, serde::Deserialize)
-)]
 pub struct Matrix<T = DefaultFloat, const M: usize, const N: usize>(pub [Vector<T, M>; N])
 where
   [T; M]: LengthAtMost32,
@@ -455,7 +451,7 @@ impl<T: Float> Mat4<T> {
   }
 }
 
-impl<T: Float, const M: usize, const N: usize> Index<usize> for Matrix<T, M, N>
+impl<T, const M: usize, const N: usize> Index<usize> for Matrix<T, M, N>
 where
   [T; M]: LengthAtMost32,
   [T; N]: LengthAtMost32,
@@ -465,7 +461,7 @@ where
   fn index(&self, i: usize) -> &Self::Output { &self.0[i] }
 }
 
-impl<T: Float, const M: usize, const N: usize> IndexMut<usize> for Matrix<T, M, N>
+impl<T, const M: usize, const N: usize> IndexMut<usize> for Matrix<T, M, N>
 where
   [T; M]: LengthAtMost32,
   [T; N]: LengthAtMost32,

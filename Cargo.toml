@@ -15,7 +15,6 @@ homepage = "https://github.com/JulianKnodt/quick_maths"
 
 [features]
 default_f64 = []
-serialization=["serde"]
 
 [dependencies]
 num = "0.2.0"

@@ -30,3 +30,6 @@ pub use transform::*;
 pub mod num;
 #[doc(inline)]
 pub use crate::num::*;
+
+#[cfg(feature = "serde")]
+pub mod serde;
