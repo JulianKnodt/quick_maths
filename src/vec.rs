@@ -32,6 +32,39 @@ where
 {
   /// Creates a vector of the value v (every element = v).
   pub fn of(v: T) -> Self { Vector([v; N]) }
+
+  /// Applies this function to every vector value.
+  #[inline]
+  pub fn apply_fn<F, S>(self, mut f: F) -> Vector<S, N>
+  where
+    F: FnMut(T) -> S,
+    [S; N]: LengthAtMost32, {
+    let mut out: [MaybeUninit<S>; N] = unsafe { MaybeUninit::uninit().assume_init() };
+    for i in 0..N {
+      out[i] = MaybeUninit::new(f(self[i]));
+    }
+    let ptr = &mut out as *mut _ as *mut [S; N];
+    let res = unsafe { ptr.read() };
+    forget(out);
+    Vector(res)
+  }
+}
+impl<T, const N: usize> Vector<T, N>
+where
+  [T; N]: LengthAtMost32,
+{
+  pub fn with<F>(mut f: F) -> Self
+  where
+    F: FnMut(usize) -> T, {
+    let mut out: [MaybeUninit<T>; N] = unsafe { MaybeUninit::uninit().assume_init() };
+    for i in 0..N {
+      out[i] = MaybeUninit::new(f(i));
+    }
+    let ptr = &mut out as *mut _ as *mut [T; N];
+    let res = unsafe { ptr.read() };
+    forget(out);
+    Vector(res)
+  }
 }
 
 impl<T: Float + Zero, const N: usize> Vector<T, N>
@@ -59,21 +92,6 @@ where
     }
     let cos_r = discrim.sqrt();
     Some(*self * eta - *norm * (eta * cos_l + cos_r))
-  }
-  /// Applies this function to every vector value.
-  #[inline]
-  pub fn apply_fn<F, S>(self, mut f: F) -> Vector<S, N>
-  where
-    F: FnMut(T) -> S,
-    [S; N]: LengthAtMost32, {
-    let mut out: [MaybeUninit<S>; N] = unsafe { MaybeUninit::uninit().assume_init() };
-    for i in 0..N {
-      out[i] = MaybeUninit::new(f(self[i]));
-    }
-    let ptr = &mut out as *mut _ as *mut [S; N];
-    let res = unsafe { ptr.read() };
-    forget(out);
-    Vector(res)
   }
   /// Computes a vector from a list of strings.
   pub fn from_str_radix(strs: [&str; N], radix: u32) -> Result<Self, T::FromStrRadixErr> {

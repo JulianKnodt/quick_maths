@@ -33,3 +33,6 @@ pub use crate::num::*;
 
 #[cfg(feature = "serde")]
 pub mod serde;
+
+#[cfg(feature = "quickcheck")]
+pub mod quickcheck;

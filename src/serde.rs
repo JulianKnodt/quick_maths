@@ -1,4 +1,4 @@
-use crate::{Vector, Matrix};
+use crate::{Matrix, Vector};
 use serde::{
   de::{Error, SeqAccess, Visitor},
   ser::SerializeTuple,

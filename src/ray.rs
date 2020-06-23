@@ -1,5 +1,5 @@
 use crate::{
-  num::Float,
+  num::{DefaultFloat, Float},
   vec::{Vec3, Vector},
 };
 use std::{
@@ -10,7 +10,7 @@ use std::{
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Ray<T = f32, V = Vec3<T>> {
+pub struct Ray<T = DefaultFloat, V = Vec3<T>> {
   pub pos: V,
   pub dir: V,
   // It makes it much cleaner to declare structs using this
