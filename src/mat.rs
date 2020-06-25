@@ -5,17 +5,11 @@ use crate::{
   vec::{Vec2, Vec3, Vec4, Vector},
 };
 use num::{Float, One, Zero};
-use std::{
-  array::LengthAtMost32,
-  ops::{Add, Div, Index, IndexMut, Mul, Range, Sub},
-};
+use std::ops::{Add, Div, Index, IndexMut, Mul, Range, Sub};
 
 /// A matrix, where each vector represents a column
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Matrix<T = DefaultFloat, const M: usize, const N: usize>(pub [Vector<T, M>; N])
-where
-  [T; M]: LengthAtMost32,
-  [Vector<T, M>; N]: LengthAtMost32;
+pub struct Matrix<T = DefaultFloat, const M: usize, const N: usize>(pub Vector<Vector<T, M>, N>);
 
 /// 4x4 Matrix
 pub type Mat4<T = DefaultFloat> = Matrix<T, 4, 4>;
@@ -24,12 +18,7 @@ pub type Mat3<T = DefaultFloat> = Matrix<T, 3, 3>;
 /// 2x2 Matrix
 pub type Mat2<T = DefaultFloat> = Matrix<T, 2, 2>;
 
-impl<T: Float, const M: usize, const N: usize> Matrix<T, M, N>
-where
-  [T; M]: LengthAtMost32,
-  [T; N]: LengthAtMost32,
-  [Vector<T, M>; N]: LengthAtMost32,
-{
+impl<T: Float, const M: usize, const N: usize> Matrix<T, M, N> {
   pub fn dot(&self, vec: &Vector<T, N>) -> Vector<T, M> {
     let mut out: Vector<T, M> = Vector::zero();
     for i in 0..N {
@@ -37,9 +26,7 @@ where
     }
     out
   }
-  pub(crate) fn qdot<const Q: usize>(&self, vec: &Vector<T, Q>) -> Vector<T, M>
-  where
-    [T; Q]: LengthAtMost32, {
+  pub(crate) fn qdot<const Q: usize>(&self, vec: &Vector<T, Q>) -> Vector<T, M> {
     // Check that Q is less than or equal to N.
     // We allow smaller values so we can multiply smaller vectors efficiently
     assert!(Q <= N);
@@ -49,9 +36,7 @@ where
     }
     out
   }
-  pub fn t(&self) -> Matrix<T, N, M>
-  where
-    [Vector<T, N>; M]: LengthAtMost32, {
+  pub fn t(&self) -> Matrix<T, N, M> {
     let mut empty: Matrix<T, N, M> = Matrix::zero();
     for y in 0..N {
       for x in 0..M {
@@ -61,11 +46,7 @@ where
     empty
   }
   /// Performs naive matrix multiplication
-  pub fn matmul<const P: usize>(&self, o: Matrix<T, N, P>) -> Matrix<T, M, P>
-  where
-    [Vector<T, N>; P]: LengthAtMost32,
-    [Vector<T, M>; P]: LengthAtMost32,
-    [T; P]: LengthAtMost32, {
+  pub fn matmul<const P: usize>(&self, o: Matrix<T, N, P>) -> Matrix<T, M, P> {
     let mut empty: Matrix<T, M, P> = Matrix::zero();
     for i in 0..P {
       empty[i] = self.dot(&o[i]);
@@ -82,15 +63,12 @@ where
   pub fn swap_cols(&mut self, a: usize, b: usize) {
     assert!(a < N);
     assert!(b < N);
-    self.0.swap(a, b);
+    (self.0).0.swap(a, b);
   }
   pub fn apply_fn<F, S>(&self, f: F) -> Matrix<S, M, N>
   where
     F: FnMut(T) -> S + Copy,
-    S: Float,
-    [S; M]: LengthAtMost32,
-    [S; N]: LengthAtMost32,
-    [Vector<S, M>; N]: LengthAtMost32, {
+    S: Float, {
     let mut empty: Matrix<S, M, N> = Matrix::zero();
     for i in 0..N {
       empty[i] = self[i].apply_fn(f);
@@ -98,11 +76,7 @@ where
     empty
   }
   /// Zero extend this matrix to a larger size
-  pub fn zxtend<const I: usize, const J: usize>(&self) -> Matrix<T, I, J>
-  where
-    [T; I]: LengthAtMost32,
-    [T; J]: LengthAtMost32,
-    [Vector<T, I>; J]: LengthAtMost32, {
+  pub fn zxtend<const I: usize, const J: usize>(&self) -> Matrix<T, I, J> {
     assert!(I >= M);
     assert!(J >= N);
     let mut out: Matrix<T, I, J> = Matrix::zero();
@@ -112,11 +86,7 @@ where
     out
   }
   /// Take some subset of this matrix(only takes from the topt left)
-  pub fn reduce<const I: usize, const J: usize>(&self) -> Matrix<T, I, J>
-  where
-    [T; I]: LengthAtMost32,
-    [T; J]: LengthAtMost32,
-    [Vector<T, I>; J]: LengthAtMost32, {
+  pub fn reduce<const I: usize, const J: usize>(&self) -> Matrix<T, I, J> {
     assert!(I <= M);
     assert!(J <= N);
     let mut out: Matrix<T, I, J> = Matrix::zero();
@@ -125,14 +95,10 @@ where
     }
     out
   }
-  pub fn frobenius(&self) -> T { self.0.iter().fold(T::zero(), |acc, n| acc + n.dot(n)) }
+  pub fn frobenius(&self) -> T { (self.0).0.iter().fold(T::zero(), |acc, n| acc + n.dot(n)) }
 }
 
-impl<T: Float, const M: usize> Matrix<T, M, M>
-where
-  [T; M]: LengthAtMost32,
-  [Vector<T, M>; M]: LengthAtMost32,
-{
+impl<T: Float, const M: usize> Matrix<T, M, M> {
   /// Returns elements on the diagonal from top left to bottom right
   pub fn diag(&self) -> impl Iterator<Item = T> + '_ { (0..M).map(move |i| self[i][i]) }
   /// Returns elements not on the diagonal in no specific order
@@ -140,10 +106,7 @@ where
     (0..M).flat_map(move |i| (0..M).filter(move |&j| j != i).map(move |j| self[i][j]))
   }
   /// Identity extend this matrix to a larger size(ones along diagonal)
-  pub fn ixtend<const I: usize>(&self) -> Matrix<T, I, I>
-  where
-    [T; I]: LengthAtMost32,
-    [Vector<T, I>; I]: LengthAtMost32, {
+  pub fn ixtend<const I: usize>(&self) -> Matrix<T, I, I> {
     let mut out: Matrix<T, I, I> = self.zxtend();
     for i in M..I {
       out[i][i] = T::one();
@@ -202,21 +165,18 @@ where
   }
 }
 
-impl<T: Float, const M: usize, const N: usize> Zero for Matrix<T, M, N>
-where
-  [T; M]: LengthAtMost32,
-  [T; N]: LengthAtMost32,
-  [Vector<T, M>; N]: LengthAtMost32,
-{
-  fn zero() -> Self { Matrix([Vector::zero(); N]) }
-  fn is_zero(&self) -> bool { self.0.iter().any(|c| c.is_zero()) }
+impl<T: Float, const M: usize, const N: usize> Zero for Matrix<T, M, N> {
+  fn zero() -> Self { Matrix(Vector::of(Vector::zero())) }
+  fn is_zero(&self) -> bool { (self.0).0.iter().all(|c| c.is_zero()) }
 }
 
 impl<T: Float> Mat3<T> {
-  pub fn new(c0: Vec3<T>, c1: Vec3<T>, c2: Vec3<T>) -> Self { Matrix([c0, c1, c2]) }
+  pub fn new(c0: Vec3<T>, c1: Vec3<T>, c2: Vec3<T>) -> Self { Matrix(Vec3::new(c0, c1, c2)) }
   /// Computes the determinant of this matrix
   pub fn det(&self) -> T {
-    let &Matrix([Vector([e00, e01, e02]), Vector([e10, e11, e12]), Vector([e20, e21, e22])]) = self;
+    let &Matrix(Vector(
+      [Vector([e00, e01, e02]), Vector([e10, e11, e12]), Vector([e20, e21, e22])],
+    )) = self;
     e00 * e11 * e22 +
     e01 * e12 * e20 +
     e02 * e10 * e21 -
@@ -231,7 +191,7 @@ impl<T: Float> Mat3<T> {
     let &Vector([i, j, k]) = around;
     let l = T::one();
     let sin_t = l - cos_t * cos_t;
-    Self([
+    Self(Vec3::new(
       Vector([
         i * i * (l - cos_t) + cos_t,
         i * j * (l - cos_t) + k * sin_t,
@@ -247,19 +207,27 @@ impl<T: Float> Mat3<T> {
         j * k * (l - cos_t) - i * sin_t,
         k * k * (l - cos_t) + cos_t,
       ]),
-    ])
+    ))
   }
   pub fn scale(by: &Vec3<T>) -> Self {
     let &Vector([i, j, k]) = by;
     let o = T::zero();
-    Self([Vector([i, o, o]), Vector([o, j, o]), Vector([o, o, k])])
+    Self(Vec3::new(
+      Vector([i, o, o]),
+      Vector([o, j, o]),
+      Vector([o, o, k]),
+    ))
   }
   /// Translation operator for 2 space
   pub fn translate(by: &Vec2<T>) -> Self {
     let &Vector([i, j]) = by;
     let o = T::zero();
     let l = T::one();
-    Self([Vector([l, o, i]), Vector([o, l, j]), Vector([o, o, l])])
+    Self(Vec3::new(
+      Vector([l, o, i]),
+      Vector([o, l, j]),
+      Vector([o, o, l]),
+    ))
   }
   pub fn project(normal: &Vec3<T>) -> Self {
     let normal = normal.norm();
@@ -277,14 +245,14 @@ impl<T: Float> Mat3<T> {
     };
     let b_0 = Vector([x, y, z]);
     let b_1 = normal.cross(&b_0);
-    Self([b_0, b_1, Vec3::zero()])
+    Self::new(b_0, b_1, Vec3::zero())
   }
   /// https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation
   /// Converts a quaternion into an equivalent matrix
   pub fn from_quat(q: Quat<T>) -> Self {
     let Vector([x, y, z, w]) = q;
     let t = T::one() + T::one();
-    Matrix([
+    Matrix(Vec3::new(
       Vec3::new(
         w * w + x * x - y * y - z * z,
         t * x * y + t * w * z,
@@ -300,40 +268,36 @@ impl<T: Float> Mat3<T> {
         t * y * z - t * w * x,
         w * w - x * x - y * y + z * z,
       ),
-    ])
+    ))
   }
 }
 
 impl<T: Float> Mat2<T> {
   /// Computes the determinant of this matrix
   pub fn det(&self) -> T {
-    let &Matrix([Vector([e00, e01]), Vector([e10, e11])]) = self;
+    let &Matrix(Vector([Vector([e00, e01]), Vector([e10, e11])])) = self;
     e00 * e11 - e01 * e10
   }
   /// Inverts this matrix, does not handle non-invertible matrices
   pub fn inv(&self) -> Self {
     let det = self.det();
-    let &Matrix([Vector([e00, e01]), Vector([e10, e11])]) = self;
-    Matrix([Vector([e11, -e01]), Vector([-e10, e00])]) / det
+    let &Matrix(Vector([Vector([e00, e01]), Vector([e10, e11])])) = self;
+    Matrix(Vec2::new(Vector([e11, -e01]), Vector([-e10, e00]))) / det
   }
   /// Returns the rotation matrix given a theta in the counterclockwise direction
   pub fn rot(theta: T) -> Self {
     let (sin_t, cos_t) = theta.sin_cos();
-    Matrix([Vector([cos_t, sin_t]), Vector([-sin_t, cos_t])])
+    Matrix(Vec2::new(Vector([cos_t, sin_t]), Vector([-sin_t, cos_t])))
   }
   /// Returns the scale matrix given scale in each direction
   pub fn scale(sx: T, sy: T) -> Self {
     let o = T::zero();
-    Matrix([Vec2::new(sx, o), Vec2::new(o, sy)])
+    Matrix(Vec2::new(Vec2::new(sx, o), Vec2::new(o, sy)))
   }
 }
 
 /// Multiplicative identity
-impl<T: Float, const M: usize> One for Matrix<T, M, M>
-where
-  [T; M]: LengthAtMost32,
-  [Vector<T, M>; M]: LengthAtMost32,
-{
+impl<T: Float, const M: usize> One for Matrix<T, M, M> {
   fn one() -> Self {
     let mut empty = Self::zero();
     for i in 0..M {
@@ -358,19 +322,19 @@ fn argmax<T: Float>(v: &[T]) -> usize {
 
 impl<T: Float> Mat4<T> {
   pub fn new(c0: Vec4<T>, c1: Vec4<T>, c2: Vec4<T>, c3: Vec4<T>) -> Self {
-    Matrix([c0, c1, c2, c3])
+    Matrix(Vector([c0, c1, c2, c3]))
   }
   /// Returns a translation matrix by t
   pub fn translate(t: Vec3<T>) -> Self {
     let l = T::one();
     let o = T::zero();
     let Vector([x, y, z]) = t;
-    Matrix([
+    Matrix(Vector([
       Vector([l, o, o, o]),
       Vector([o, l, o, o]),
       Vector([o, o, l, o]),
       Vector([x, y, z, l]),
-    ])
+    ]))
   }
   /// Returns the translation encoded in this matrix
   pub fn translation(&self) -> Vec3<T> { self[3].homogenize() }
@@ -382,9 +346,9 @@ impl<T: Float> Mat4<T> {
     // twas a b'
     // taken from https://github.com/mrdoob/three.js/blob/master/src/math/Matrix4.js
     // which took it from http://www.euclideanspace.com/maths/algebra/matrix/functions/inverse/fourD/index.htm
-    let &Matrix(
+    let &Matrix(Vector(
       [Vector([e11, e21, e31, e41]), Vector([e12, e22, e32, e42]), Vector([e13, e23, e33, e43]), Vector([e14, e24, e34, e44])],
-    ) = self;
+    )) = self;
     let t11 =
       e23 * e34 * e42 - e24 * e33 * e42 + e24 * e32 * e43 - e22 * e34 * e43 - e23 * e32 * e44
         + e22 * e33 * e44;
@@ -455,41 +419,27 @@ impl<T: Float> Mat4<T> {
       (e12 * e23 * e31 - e13 * e22 * e31 + e13 * e21 * e32 - e11 * e23 * e32 - e12 * e21 * e33
         + e11 * e22 * e33)
         * det_i;
-    Matrix([
+    Matrix(Vector([
       Vector([o11, o21, o31, o41]),
       Vector([o12, o22, o32, o42]),
       Vector([o13, o23, o33, o43]),
       Vector([o14, o24, o34, o44]),
-    ])
+    ]))
   }
 }
 
-impl<T, const M: usize, const N: usize> Index<usize> for Matrix<T, M, N>
-where
-  [T; M]: LengthAtMost32,
-  [T; N]: LengthAtMost32,
-  [Vector<T, M>; N]: LengthAtMost32,
-{
+impl<T, const M: usize, const N: usize> Index<usize> for Matrix<T, M, N> {
   type Output = Vector<T, M>;
   fn index(&self, i: usize) -> &Self::Output { &self.0[i] }
 }
 
-impl<T, const M: usize, const N: usize> IndexMut<usize> for Matrix<T, M, N>
-where
-  [T; M]: LengthAtMost32,
-  [T; N]: LengthAtMost32,
-  [Vector<T, M>; N]: LengthAtMost32,
-{
+impl<T, const M: usize, const N: usize> IndexMut<usize> for Matrix<T, M, N> {
   fn index_mut(&mut self, i: usize) -> &mut Self::Output { &mut self.0[i] }
 }
 
 macro_rules! def_op {
   ($ty: ty, $func: ident, $op: tt) => {
     impl<T: Float, const M: usize, const N: usize> $ty for Matrix<T, M, N>
-    where
-      [T; M]: LengthAtMost32,
-      [T; N]: LengthAtMost32,
-      [Vector<T, M>; N]: LengthAtMost32,
     {
       type Output = Self;
       fn $func(mut self, o: Self) -> Self {
@@ -510,10 +460,6 @@ def_op!(Div, div, /);
 macro_rules! def_scalar_op {
   ($ty: ty, $func: ident, $op: tt) => {
     impl<T: Float, const M: usize, const N: usize> $ty for Matrix<T, M, N>
-    where
-      [T; M]: LengthAtMost32,
-      [T; N]: LengthAtMost32,
-      [Vector<T, M>; N]: LengthAtMost32,
     {
       type Output = Self;
       fn $func(mut self, o: T) -> Self {
@@ -578,12 +524,7 @@ macro_rules! curried_elemwise_impl {
     curried_elemwise_impl!($func, $call, stringify!($func));
   };
 }
-impl<T: Float, const M: usize, const N: usize> Matrix<T, M, N>
-where
-  [T; M]: LengthAtMost32,
-  [T; N]: LengthAtMost32,
-  [Vector<T, M>; N]: LengthAtMost32,
-{
+impl<T: Float, const M: usize, const N: usize> Matrix<T, M, N> {
   // Trigonometric stuff
   elemwise_impl!(cos, T::cos);
   elemwise_impl!(sin, T::sin);

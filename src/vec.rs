@@ -171,8 +171,11 @@ impl<const N: usize> Vector<bool, N> {
   }
 }
 
-impl<T: Float> Vec3<T> {
+impl<T> Vec3<T> {
   pub fn new(a: T, b: T, c: T) -> Self { Vector([a, b, c]) }
+}
+
+impl<T: Float> Vec3<T> {
   /// Takes the cross product of self with other
   pub fn cross(&self, o: &Self) -> Self {
     let [a, b, c] = self.0;

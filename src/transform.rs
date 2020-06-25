@@ -1,15 +1,12 @@
 use crate::{num::DefaultFloat, Float, Mat2, Mat3, Mat4, Matrix, Ray, Vec2, Vec3, Vec4, Vector};
 use num::One;
-use std::{array::LengthAtMost32, ops::Mul};
+use std::ops::Mul;
 
 /// Transform type which represents an easily invertible operator.
 /// i.e. rotation in 3D, translation, etc.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Transform<T = DefaultFloat, const N: usize>
-where
-  [T; N]: LengthAtMost32,
-  [Vector<T, N>; N]: LengthAtMost32, {
+pub struct Transform<T = DefaultFloat, const N: usize> {
   /// Forward transformation
   pub fwd: Matrix<T, N, N>,
   /// Inverted transformation
@@ -21,11 +18,7 @@ pub type Transform4<T = DefaultFloat> = Transform<T, 4>;
 /// 2D transformation, where 3 represents the dimension of the matrix used.
 pub type Transform3<T = DefaultFloat> = Transform<T, 3>;
 
-impl<T: Float, const N: usize> Transform<T, N>
-where
-  [T; N]: LengthAtMost32,
-  [Vector<T, N>; N]: LengthAtMost32,
-{
+impl<T: Float, const N: usize> Transform<T, N> {
   pub fn identity() -> Self {
     Self {
       fwd: Matrix::one(),
@@ -41,11 +34,7 @@ where
   }
 }
 
-impl<T: Float, const N: usize> Mul for Transform<T, N>
-where
-  [T; N]: LengthAtMost32,
-  [Vector<T, N>; N]: LengthAtMost32,
-{
+impl<T: Float, const N: usize> Mul for Transform<T, N> {
   type Output = Transform<T, N>;
   fn mul(self, o: Self) -> Self::Output {
     Self::Output {
@@ -125,9 +114,9 @@ impl<T: Float> Transform4<T> {
   pub fn apply_vec(&self, vec: &Vec3<T>) -> Vec3<T> { self.fwd.qdot(&vec).reduce() }
   /// Applies this transformation as if applying it to a (surface) normal vector
   pub fn apply_normal(&self, n: &Vec3<T>) -> Vec3<T> {
-    let Matrix(
+    let Matrix(Vector(
       [Vector([e00, e10, e20, _]), Vector([e01, e11, e21, _]), Vector([e02, e12, e22, _]), _],
-    ) = self.bkwd;
+    )) = self.bkwd;
     let &Vector([x, y, z]) = n;
     Vec3::new(
       e00 * x + e10 * y + e20 * z,
