@@ -7,6 +7,7 @@ use crate::{
 use num::{Float, One, Zero};
 use std::ops::{Add, Div, Index, IndexMut, Mul, Range, Sub};
 
+// TODO decide if matrix should be a type alias or a struct
 /// A matrix, where each vector represents a column
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Matrix<T = DefaultFloat, const M: usize, const N: usize>(pub Vector<Vector<T, M>, N>);

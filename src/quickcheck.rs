@@ -1,11 +1,7 @@
 use crate::{Ray, Vector};
 use quickcheck::{Arbitrary, Gen};
-use std::array::LengthAtMost32;
 
-impl<A: Arbitrary + Copy, const N: usize> Arbitrary for Vector<A, N>
-where
-  [A; N]: LengthAtMost32,
-{
+impl<A: Arbitrary, const N: usize> Arbitrary for Vector<A, N> {
   fn arbitrary<G: Gen>(g: &mut G) -> Self { Vector::with(|_| A::arbitrary(g)) }
 }
 

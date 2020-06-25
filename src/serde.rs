@@ -5,7 +5,6 @@ use serde::{
   Deserialize, Deserializer, Serialize, Serializer,
 };
 use std::{
-  array::LengthAtMost32,
   fmt,
   marker::PhantomData,
   mem::{self, MaybeUninit},
@@ -13,7 +12,6 @@ use std::{
 
 impl<T, const N: usize> Serialize for Vector<T, N>
 where
-  [T; N]: LengthAtMost32,
   T: Serialize,
 {
   fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
@@ -27,9 +25,6 @@ where
 
 impl<T, const M: usize, const N: usize> Serialize for Matrix<T, M, N>
 where
-  [T; N]: LengthAtMost32,
-  [T; M]: LengthAtMost32,
-  [Vector<T, M>; N]: LengthAtMost32,
   T: Serialize,
 {
   fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
@@ -46,7 +41,6 @@ struct ArrayVisitor<A>(PhantomData<A>);
 impl<'de, T, const N: usize> Visitor<'de> for ArrayVisitor<[T; N]>
 where
   T: Deserialize<'de>,
-  [T; N]: LengthAtMost32,
 {
   type Value = [T; N];
   fn expecting(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
@@ -72,7 +66,6 @@ where
 
 impl<'de, T, const N: usize> Deserialize<'de> for Vector<T, N>
 where
-  [T; N]: LengthAtMost32,
   T: Deserialize<'de>,
 {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -86,9 +79,6 @@ where
 
 impl<'de, T, const M: usize, const N: usize> Deserialize<'de> for Matrix<T, M, N>
 where
-  [T; M]: LengthAtMost32,
-  [T; N]: LengthAtMost32,
-  [Vector<T, M>; N]: LengthAtMost32,
   T: Deserialize<'de>,
 {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -96,6 +86,7 @@ where
     D: Deserializer<'de>, {
     deserializer
       .deserialize_tuple(N, ArrayVisitor::<_>(PhantomData))
+      .map(Vector)
       .map(Matrix)
   }
 }
