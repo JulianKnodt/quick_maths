@@ -2,8 +2,9 @@
 use crate::num::DefaultFloat;
 use num::{Float, One, Zero};
 use std::{
-  array::LengthAtMost32,
   borrow::{Borrow, BorrowMut},
+  cmp::Ordering,
+  fmt::{self, Debug},
   mem::{forget, MaybeUninit},
   ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
@@ -13,10 +14,7 @@ use std::{
 
 /// Vector over floats and a const-size.
 /// Often used through Vec2, Vec3, and Vec4 instead of the raw struct.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd)]
-pub struct Vector<T = DefaultFloat, const N: usize>(pub [T; N])
-where
-  [T; N]: LengthAtMost32;
+pub struct Vector<T = DefaultFloat, const N: usize>(pub [T; N]);
 
 /// 2D vector with default float type (f32).
 pub type Vec2<T = DefaultFloat> = Vector<T, 2>;
@@ -26,10 +24,7 @@ pub type Vec3<T = DefaultFloat> = Vector<T, 3>;
 /// Often implicitly created by Vec3::homogeneous.
 pub type Vec4<T = DefaultFloat> = Vector<T, 4>;
 
-impl<T: Copy, const N: usize> Vector<T, N>
-where
-  [T; N]: LengthAtMost32,
-{
+impl<T: Copy, const N: usize> Vector<T, N> {
   /// Creates a vector of the value v (every element = v).
   pub fn of(v: T) -> Self { Vector([v; N]) }
 
@@ -37,8 +32,7 @@ where
   #[inline]
   pub fn apply_fn<F, S>(self, mut f: F) -> Vector<S, N>
   where
-    F: FnMut(T) -> S,
-    [S; N]: LengthAtMost32, {
+    F: FnMut(T) -> S, {
     let mut out: [MaybeUninit<S>; N] = unsafe { MaybeUninit::uninit().assume_init() };
     for i in 0..N {
       out[i] = MaybeUninit::new(f(self[i]));
@@ -49,10 +43,7 @@ where
     Vector(res)
   }
 }
-impl<T, const N: usize> Vector<T, N>
-where
-  [T; N]: LengthAtMost32,
-{
+impl<T, const N: usize> Vector<T, N> {
   pub fn with<F>(mut f: F) -> Self
   where
     F: FnMut(usize) -> T, {
@@ -67,10 +58,7 @@ where
   }
 }
 
-impl<T: Float + Zero, const N: usize> Vector<T, N>
-where
-  [T; N]: LengthAtMost32,
-{
+impl<T: Float + Zero, const N: usize> Vector<T, N> {
   /// Takes the dot product of two vectors
   pub fn dot(&self, o: &Self) -> T { (0..N).fold(T::zero(), |acc, n| acc + self.0[n] * o.0[n]) }
   /// Computes the sqr_magnitude of the vector
@@ -132,9 +120,7 @@ where
   pub fn dist(&self, o: &Self) -> T { (*self - *o).magn() }
   /// Zero-extend this vector to a larger vector.
   /// Must increase the size of the vector or keep it the same size.
-  pub fn zxtend<const M: usize>(&self) -> Vector<T, M>
-  where
-    [T; M]: LengthAtMost32, {
+  pub fn zxtend<const M: usize>(&self) -> Vector<T, M> {
     assert!(M >= N);
     let mut out: Vector<T, M> = Vector::zero();
     for i in 0..N {
@@ -144,9 +130,7 @@ where
   }
   /// Shrink this vector to a lower dimension
   /// Must lower or keep the same size.
-  pub fn reduce<const M: usize>(&self) -> Vector<T, M>
-  where
-    [T; M]: LengthAtMost32, {
+  pub fn reduce<const M: usize>(&self) -> Vector<T, M> {
     assert!(M <= N);
     let mut out: Vector<T, M> = Vector::zero();
     for i in 0..M {
@@ -168,10 +152,7 @@ where
   }
 }
 
-impl<const N: usize> Vector<bool, N>
-where
-  [bool; N]: LengthAtMost32,
-{
+impl<const N: usize> Vector<bool, N> {
   pub fn any(&self) -> bool {
     for i in 0..N {
       if self[i] {
@@ -261,64 +242,40 @@ impl<T: Float> Vec4<T> {
 
 // Trait implementations for convenience
 
-impl<T, const N: usize> AsRef<[T]> for Vector<T, N>
-where
-  [T; N]: LengthAtMost32,
-{
+impl<T, const N: usize> AsRef<[T]> for Vector<T, N> {
   fn as_ref(&self) -> &[T] { &self.0 }
 }
 
-impl<T, const N: usize> Borrow<[T]> for Vector<T, N>
-where
-  [T; N]: LengthAtMost32,
-{
+impl<T, const N: usize> Borrow<[T]> for Vector<T, N> {
   fn borrow(&self) -> &[T] { &self.0 }
 }
 
-impl<T, const N: usize> BorrowMut<[T]> for Vector<T, N>
-where
-  [T; N]: LengthAtMost32,
-{
+impl<T, const N: usize> BorrowMut<[T]> for Vector<T, N> {
   fn borrow_mut(&mut self) -> &mut [T] { &mut self.0 }
 }
 
 // Op implementations
 
-impl<T: Float, const N: usize> One for Vector<T, N>
-where
-  [T; N]: LengthAtMost32,
-{
+impl<T: Float, const N: usize> One for Vector<T, N> {
   fn one() -> Self { Vector([T::one(); N]) }
   fn is_one(&self) -> bool { self.0.iter().all(T::is_one) }
 }
 
-impl<T: Float, const N: usize> Zero for Vector<T, N>
-where
-  [T; N]: LengthAtMost32,
-{
+impl<T: Float, const N: usize> Zero for Vector<T, N> {
   fn zero() -> Self { Vector([T::zero(); N]) }
   fn is_zero(&self) -> bool { self.0.iter().all(T::is_zero) }
 }
 
-impl<T, const N: usize> Index<usize> for Vector<T, N>
-where
-  [T; N]: LengthAtMost32,
-{
+impl<T, const N: usize> Index<usize> for Vector<T, N> {
   type Output = T;
   fn index(&self, i: usize) -> &Self::Output { &self.0[i] }
 }
 
-impl<T, const N: usize> IndexMut<usize> for Vector<T, N>
-where
-  [T; N]: LengthAtMost32,
-{
+impl<T, const N: usize> IndexMut<usize> for Vector<T, N> {
   fn index_mut(&mut self, i: usize) -> &mut Self::Output { &mut self.0[i] }
 }
 
-impl<T: Neg<Output = T> + Copy, const N: usize> Neg for Vector<T, N>
-where
-  [T; N]: LengthAtMost32,
-{
+impl<T: Neg<Output = T> + Copy, const N: usize> Neg for Vector<T, N> {
   type Output = Self;
   fn neg(mut self) -> Self::Output {
     for i in 0..N {
@@ -328,10 +285,7 @@ where
   }
 }
 
-impl<T: Not<Output = T> + Copy, const N: usize> Not for Vector<T, N>
-where
-  [T; N]: LengthAtMost32,
-{
+impl<T: Not<Output = T> + Copy, const N: usize> Not for Vector<T, N> {
   type Output = Self;
   fn not(mut self) -> Self::Output {
     for i in 0..N {
@@ -343,11 +297,7 @@ where
 
 macro_rules! vec_op {
   ($t: ident, $func: ident, $op: tt) => {
-    impl<T: $t + Copy, const N: usize> $t for Vector<T, N>
-    where
-      [T; N]: LengthAtMost32,
-      [<T as $t>::Output; N]: LengthAtMost32,
-    {
+    impl<T: $t + Copy, const N: usize> $t for Vector<T, N> {
       type Output = Vector<T::Output, N>;
       fn $func(self, o: Self) -> Self::Output {
         let mut out: [MaybeUninit<T::Output>; N] = unsafe { MaybeUninit::uninit().assume_init() };
@@ -376,11 +326,7 @@ vec_op!(BitXor, bitxor, ^);
 
 macro_rules! scalar_op {
   ($t: ident, $func: ident, $op: tt) => {
-    impl<T: $t + Copy, const N: usize> $t<T> for Vector<T, N>
-    where
-      [T; N]: LengthAtMost32,
-      [<T as $t>::Output; N]: LengthAtMost32,
-    {
+    impl<T: $t + Copy, const N: usize> $t<T> for Vector<T, N> {
       type Output = Vector<T::Output, N>;
       fn $func(self, o: T) -> Self::Output {
         let mut out: [MaybeUninit<T::Output>; N] = unsafe { MaybeUninit::uninit().assume_init() };
@@ -409,20 +355,14 @@ scalar_op!(BitXor, bitxor, ^);
 
 macro_rules! assign_op {
   ($t: ident, $func: ident, $op: tt) => {
-    impl<T: $t + Copy, const N: usize> $t<T> for Vector<T, N>
-    where
-      [T; N]: LengthAtMost32,
-    {
+    impl<T: $t + Copy, const N: usize> $t<T> for Vector<T, N> {
       fn $func(&mut self, o: T) {
         for i in 0..N {
           self.0[i] $op o;
         }
       }
     }
-    impl<T: $t + Copy, const N: usize> $t for Vector<T, N>
-    where
-      [T; N]: LengthAtMost32,
-    {
+    impl<T: $t + Copy, const N: usize> $t for Vector<T, N> {
       fn $func(&mut self, o: Self) {
         for i in 0..N {
           self.0[i] $op o.0[i];
@@ -466,10 +406,7 @@ macro_rules! curried_elemwise_impl {
     curried_elemwise_impl!($func, $call, stringify!($func));
   };
 }
-impl<T: Float, const N: usize> Vector<T, N>
-where
-  [T; N]: LengthAtMost32,
-{
+impl<T: Float, const N: usize> Vector<T, N> {
   // Trigonometric stuff
   elemwise_impl!(cos, T::cos);
   elemwise_impl!(sin, T::sin);
@@ -499,17 +436,9 @@ where
   curried_elemwise_impl!(abs_sub, T::abs_sub);
   elemwise_impl!(signum, T::signum);
 
-  pub fn is_sign_positive(&self) -> Vector<bool, N>
-  where
-    [bool; N]: LengthAtMost32, {
-    self.apply_fn(T::is_sign_positive)
-  }
+  pub fn is_sign_positive(&self) -> Vector<bool, N> { self.apply_fn(T::is_sign_positive) }
 
-  pub fn is_sign_negative(&self) -> Vector<bool, N>
-  where
-    [bool; N]: LengthAtMost32, {
-    self.apply_fn(T::is_sign_negative)
-  }
+  pub fn is_sign_negative(&self) -> Vector<bool, N> { self.apply_fn(T::is_sign_negative) }
 
   // Reciprocal
   elemwise_impl!(recip, T::recip);
@@ -553,3 +482,46 @@ fn example() {
   assert_eq!(y, j);
   assert_eq!(z, k);
 }
+
+//// Trait Implementations for Vector below
+
+impl<T: Clone, const N: usize> Clone for Vector<T, N> {
+  fn clone(&self) -> Self {
+    let mut out: [MaybeUninit<T>; N] = unsafe { MaybeUninit::uninit().assume_init() };
+    for i in 0..N {
+      out[i] = MaybeUninit::new(self.0[i].clone());
+    }
+    let ptr = &mut out as *mut _ as *mut [T; N];
+    let res = unsafe { ptr.read() };
+    forget(out);
+    Vector(res)
+  }
+}
+impl<T: Copy, const N: usize> Copy for Vector<T, N> {}
+impl<T: PartialOrd, const N: usize> PartialOrd for Vector<T, N> {
+  fn partial_cmp(&self, o: &Self) -> Option<Ordering> {
+    PartialOrd::partial_cmp(&&self.0[..], &&o.0[..])
+  }
+}
+
+impl<T: Ord, const N: usize> Ord for Vector<T, N> {
+  fn cmp(&self, o: &Self) -> Ordering { Ord::cmp(&&self.0[..], &&o.0[..]) }
+}
+
+impl<T: Debug, const N: usize> Debug for Vector<T, N> {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    f.debug_list().entries(self.0.iter()).finish()
+  }
+}
+
+impl<T: PartialEq, const N: usize> PartialEq for Vector<T, N> {
+  fn eq(&self, o: &Self) -> bool {
+    for i in 0..N {
+      if self[i] != o[i] {
+        return false;
+      }
+    }
+    true
+  }
+}
+impl<T: Eq, const N: usize> Eq for Vector<T, N> {}
