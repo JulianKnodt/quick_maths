@@ -1,14 +1,11 @@
-use crate::{num::DefaultFloat, Float, Mat2, Mat3, Mat4, Matrix, Vec2, Vec3, Vec4, Vector};
+use crate::{num::DefaultFloat, Float, Mat2, Mat3, Mat4, Matrix, Ray, Vec2, Vec3, Vec4, Vector};
 use num::One;
 use std::{array::LengthAtMost32, ops::Mul};
 
 /// Transform type which represents an easily invertible operator.
 /// i.e. rotation in 3D, translation, etc.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[cfg_attr(
-  feature = "serialization",
-  derive(serde::Serialize, serde::Deserialize)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Transform<T = DefaultFloat, const N: usize>
 where
   [T; N]: LengthAtMost32,
@@ -67,12 +64,12 @@ impl<T: Float> Transform4<T> {
   }
   pub fn scale(by: Vec3<T>) -> Self {
     Self {
-      fwd: Mat3::scale(&by).zxtend(),
-      bkwd: Mat3::scale(&by.recip()).zxtend(),
+      fwd: Mat3::scale(&by).ixtend(),
+      bkwd: Mat3::scale(&by.recip()).ixtend(),
     }
   }
   pub fn rot(axis: Vec3<T>, theta: T) -> Self {
-    let fwd = Mat3::rot(&axis, theta.cos()).zxtend();
+    let fwd = Mat3::rot(&axis, theta.cos()).ixtend();
     Self { bkwd: fwd.t(), fwd }
   }
   pub fn translate(by: Vec3<T>) -> Self {
@@ -92,6 +89,7 @@ impl<T: Float> Transform4<T> {
     let o = T::zero();
     Self::scale(Vec3::new(l, l, l / (z_far - z_near))) * Self::translate(Vec3::new(o, o, -z_near))
   }
+  /// Perspective transformation
   pub fn perspective(fov: T, near: T, far: T) -> Self {
     let s1 = far / (far - near);
     let s2 = -near * s1;
@@ -106,6 +104,7 @@ impl<T: Float> Transform4<T> {
     let inv_tan_angle = (fov.to_radians() / (l + l)).tan().recip();
     Self::scale(Vec3::new(inv_tan_angle, inv_tan_angle, l)) * Self::new(m)
   }
+  /// A transformation that orients something as if it's looking towards "at" from "pos".
   pub fn look_at(pos: Vec3<T>, at: Vec3<T>, up: Vec3<T>) -> Self {
     let dir = (at - pos).norm();
     // do a couple of extra norm calls here, maybe can remove them but nice to be safe
@@ -117,10 +116,14 @@ impl<T: Float> Transform4<T> {
       fwd: cam_to_world,
     }
   }
+  /// Applies this transformation as if to a point.
   pub fn apply_point(&self, pt: &Vec3<T>) -> Vec3<T> {
     self.fwd.dot(&pt.homogeneous()).homogenize()
   }
+  /// Applies this transformation as if applying it to a vector
+  /// What this means operationally is no transformations.
   pub fn apply_vec(&self, vec: &Vec3<T>) -> Vec3<T> { self.fwd.qdot(&vec).reduce() }
+  /// Applies this transformation as if applying it to a (surface) normal vector
   pub fn apply_normal(&self, n: &Vec3<T>) -> Vec3<T> {
     let Matrix(
       [Vector([e00, e10, e20, _]), Vector([e01, e11, e21, _]), Vector([e02, e12, e22, _]), _],
@@ -132,6 +135,11 @@ impl<T: Float> Transform4<T> {
       e02 * x + e12 * y + e22 * z,
     )
   }
+  /// Applies this transform to a ray (convenience for applying point to origin and vector to
+  /// direction)
+  pub fn apply_ray(&self, r: &Ray<T>) -> Ray<T> {
+    Ray::new(self.apply_point(&r.pos), self.apply_vec(&r.dir))
+  }
 }
 
 impl<T: Float> Transform3<T> {
@@ -142,7 +150,7 @@ impl<T: Float> Transform3<T> {
     }
   }
   pub fn rot(theta: T) -> Self {
-    let fwd = Mat2::rot(theta).zxtend();
+    let fwd = Mat2::rot(theta).ixtend();
     Self { bkwd: fwd.t(), fwd }
   }
   pub fn translate(by: Vec2<T>) -> Self {

@@ -13,6 +13,7 @@ use std::{
 pub struct Ray<T = DefaultFloat, V = Vec3<T>> {
   pub pos: V,
   pub dir: V,
+  // TODO should I add a time field here?
   // It makes it much cleaner to declare structs using this
   phantom: PhantomData<T>,
 }

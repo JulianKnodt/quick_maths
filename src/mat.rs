@@ -139,6 +139,17 @@ where
   pub fn off_diag(&self) -> impl Iterator<Item = T> + '_ {
     (0..M).flat_map(move |i| (0..M).filter(move |&j| j != i).map(move |j| self[i][j]))
   }
+  /// Identity extend this matrix to a larger size(ones along diagonal)
+  pub fn ixtend<const I: usize>(&self) -> Matrix<T, I, I>
+  where
+    [T; I]: LengthAtMost32,
+    [Vector<T, I>; I]: LengthAtMost32, {
+    let mut out: Matrix<T, I, I> = self.zxtend();
+    for i in M..I {
+      out[i][i] = T::one();
+    }
+    out
+  }
   pub fn trace(&self) -> T { self.diag().fold(T::zero(), |acc, n| acc + n) }
   /// LUP decomposes self into lower triangular, upper triangular and pivot matrix
   pub fn lup(&self) -> (Self, Self, Self) {
@@ -361,6 +372,8 @@ impl<T: Float> Mat4<T> {
       Vector([x, y, z, l]),
     ])
   }
+  /// Returns the translation encoded in this matrix
+  pub fn translation(&self) -> Vec3<T> { self[3].homogenize() }
   // Computes the determinant of this matrix
   // fn det(&self) -> T { todo!() }
 
