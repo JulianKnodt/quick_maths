@@ -58,6 +58,19 @@ impl<T, const N: usize> Vector<T, N> {
   }
 }
 
+impl<T: Zero + Copy, const N: usize> Vector<T, N> {
+  /// Zero-extend this vector to a larger vector.
+  /// Must increase the size of the vector or keep it the same size.
+  pub fn zxtend<const M: usize>(&self) -> Vector<T, M> {
+    assert!(M >= N);
+    let mut out: Vector<T, M> = Vector::zero();
+    for i in 0..N {
+      out[i] = self[i];
+    }
+    out
+  }
+}
+
 impl<T: Float + Zero, const N: usize> Vector<T, N> {
   /// Takes the dot product of two vectors
   pub fn dot(&self, o: &Self) -> T { (0..N).fold(T::zero(), |acc, n| acc + self.0[n] * o.0[n]) }
@@ -118,16 +131,6 @@ impl<T: Float + Zero, const N: usize> Vector<T, N> {
     }
   }
   pub fn dist(&self, o: &Self) -> T { (*self - *o).magn() }
-  /// Zero-extend this vector to a larger vector.
-  /// Must increase the size of the vector or keep it the same size.
-  pub fn zxtend<const M: usize>(&self) -> Vector<T, M> {
-    assert!(M >= N);
-    let mut out: Vector<T, M> = Vector::zero();
-    for i in 0..N {
-      out[i] = self[i];
-    }
-    out
-  }
   /// Shrink this vector to a lower dimension
   /// Must lower or keep the same size.
   pub fn reduce<const M: usize>(&self) -> Vector<T, M> {
@@ -149,6 +152,11 @@ impl<T: Float + Zero, const N: usize> Vector<T, N> {
       }
     }
     (min, max)
+  }
+
+  pub fn project_onto(&self, onto: &Self) -> Self {
+    let similarity = self.magn() * self.dot(onto);
+    onto.norm() * similarity
   }
 }
 
@@ -180,7 +188,7 @@ impl<T: Float> Vec3<T> {
   pub fn cross(&self, o: &Self) -> Self {
     let [a, b, c] = self.0;
     let [x, y, z] = o.0;
-    Vector([b * z - c * y, c * x - a * z, a * y - b * z])
+    Vec3::new(b * z - c * y, c * x - a * z, a * y - b * x)
   }
   pub fn sided(&self, o: &Self, normal: &Self) -> bool {
     self.cross(o).dot(normal).is_sign_positive()
@@ -216,6 +224,12 @@ impl<T: Copy> Vec2<T> {
 }
 
 impl<T: Float> Vec2<T> {
+  /// Rotates this vector around the origin by theta (in radians)
+  pub fn rot(&self, theta: T) -> Self {
+    let &Vector([x, y]) = self;
+    let (s, c) = theta.sin_cos();
+    Vec2::new(c * x - s * y, s * x + c * y)
+  }
   pub fn signed_angle(&self, dst: &Self) -> T {
     let [i, j] = self.0;
     let [x, y] = dst.0;
@@ -264,7 +278,7 @@ impl<T: Float, const N: usize> One for Vector<T, N> {
   fn is_one(&self) -> bool { self.0.iter().all(T::is_one) }
 }
 
-impl<T: Float, const N: usize> Zero for Vector<T, N> {
+impl<T: Zero + Copy, const N: usize> Zero for Vector<T, N> {
   fn zero() -> Self { Vector([T::zero(); N]) }
   fn is_zero(&self) -> bool { self.0.iter().all(T::is_zero) }
 }
@@ -282,7 +296,7 @@ impl<T: Neg<Output = T> + Copy, const N: usize> Neg for Vector<T, N> {
   type Output = Self;
   fn neg(mut self) -> Self::Output {
     for i in 0..N {
-      self.0[i] = -self.0[i];
+      self[i] = -self[i];
     }
     self
   }
@@ -292,7 +306,7 @@ impl<T: Not<Output = T> + Copy, const N: usize> Not for Vector<T, N> {
   type Output = Self;
   fn not(mut self) -> Self::Output {
     for i in 0..N {
-      self.0[i] = !self.0[i];
+      self[i] = !self[i];
     }
     self
   }
@@ -469,35 +483,23 @@ impl<T: Float, const N: usize> Vector<T, N> {
   elemwise_impl!(to_radians, T::to_radians);
 }
 
-#[test]
-fn example() {
-  let a = Vec3::of(0.0);
-  let b = a + 1.0;
-  let c = b.sin();
-  let _dot = b.dot(&c);
-
-  let x = c.x();
-  let y = c.y();
-  let z = c.z();
-
-  let Vector([i, j, k]) = c;
-  assert_eq!(x, i);
-  assert_eq!(y, j);
-  assert_eq!(z, k);
-}
-
 //// Trait Implementations for Vector below
 
 impl<T: Clone, const N: usize> Clone for Vector<T, N> {
   fn clone(&self) -> Self {
     let mut out: [MaybeUninit<T>; N] = unsafe { MaybeUninit::uninit().assume_init() };
     for i in 0..N {
-      out[i] = MaybeUninit::new(self.0[i].clone());
+      out[i] = MaybeUninit::new(self[i].clone());
     }
     let ptr = &mut out as *mut _ as *mut [T; N];
     let res = unsafe { ptr.read() };
     forget(out);
     Vector(res)
+  }
+  fn clone_from(&mut self, source: &Self) {
+    for i in 0..N {
+      self[i] = source[i].clone();
+    }
   }
 }
 impl<T: Copy, const N: usize> Copy for Vector<T, N> {}
@@ -528,3 +530,20 @@ impl<T: PartialEq, const N: usize> PartialEq for Vector<T, N> {
   }
 }
 impl<T: Eq, const N: usize> Eq for Vector<T, N> {}
+
+#[test]
+fn example() {
+  let a = Vec3::of(0.0);
+  let b = a + 1.0;
+  let c = b.sin();
+  let _dot = b.dot(&c);
+
+  let x = c.x();
+  let y = c.y();
+  let z = c.z();
+
+  let Vector([i, j, k]) = c;
+  assert_eq!(x, i);
+  assert_eq!(y, j);
+  assert_eq!(z, k);
+}

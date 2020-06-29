@@ -36,6 +36,3 @@ pub mod serde;
 
 #[cfg(feature = "quickcheck")]
 pub mod quickcheck;
-
-// TODO Omitted due to current ICE
-// pub mod tensor;
