@@ -17,6 +17,7 @@ homepage = "https://github.com/JulianKnodt/quick_maths"
 default_f64 = []
 mueller = []
 stokes = []
+masked = []
 
 [dependencies]
 num = "0.2.0"

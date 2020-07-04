@@ -44,3 +44,6 @@ pub mod mueller;
 /// Convenience functions for stokes vectors
 #[cfg(feature = "stokes")]
 pub mod stokes;
+
+#[cfg(feature = "masked")]
+pub mod masked;
