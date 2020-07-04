@@ -19,6 +19,18 @@ pub type Mat3<T = DefaultFloat> = Matrix<T, 3, 3>;
 /// 2x2 Matrix
 pub type Mat2<T = DefaultFloat> = Matrix<T, 2, 2>;
 
+impl<T, const M: usize, const N: usize> Matrix<T, M, N> {
+  /// Top-Bottom, Left-Right iterator.
+  pub fn y_x_iter(&self) -> impl Iterator<Item = &T> + '_ {
+    (self.0).0.iter().flat_map(|col| col.0.iter())
+    // (0..N).flat_map(move |x| (0..M).map(move |y| &self[x][y]))
+  }
+  /// Left-Right, Top-Bottom iterator.
+  pub fn x_y_iter(&self) -> impl Iterator<Item = &T> + '_ {
+    (0..M).flat_map(move |y| (0..N).map(move |x| &self[x][y]))
+  }
+}
+
 impl<T: Float, const M: usize, const N: usize> Matrix<T, M, N> {
   pub fn dot(&self, vec: &Vector<T, N>) -> Vector<T, M> {
     let mut out: Vector<T, M> = Vector::zero();
@@ -47,7 +59,7 @@ impl<T: Float, const M: usize, const N: usize> Matrix<T, M, N> {
     empty
   }
   /// Performs naive matrix multiplication
-  pub fn matmul<const P: usize>(&self, o: Matrix<T, N, P>) -> Matrix<T, M, P> {
+  pub fn matmul<const P: usize>(&self, o: &Matrix<T, N, P>) -> Matrix<T, M, P> {
     let mut empty: Matrix<T, M, P> = Matrix::zero();
     for i in 0..P {
       empty[i] = self.dot(&o[i]);
@@ -100,6 +112,14 @@ impl<T: Float, const M: usize, const N: usize> Matrix<T, M, N> {
 }
 
 impl<T: Float, const M: usize> Matrix<T, M, M> {
+  /// Creates a square matrix from a diagonal
+  pub fn from_diag(v: Vector<T, M>) -> Self {
+    let mut out = Self::zero();
+    for i in 0..M {
+      out[i][i] = v[i];
+    }
+    out
+  }
   /// Returns elements on the diagonal from top left to bottom right
   pub fn diag(&self) -> impl Iterator<Item = T> + '_ { (0..M).map(move |i| self[i][i]) }
   /// Returns elements not on the diagonal in no specific order
@@ -426,6 +446,18 @@ impl<T: Float> Mat4<T> {
       Vector([o13, o23, o33, o43]),
       Vector([o14, o24, o34, o44]),
     ]))
+  }
+  /// Returns the pseudo-inverse of this matrix
+  pub fn p_inv(&self) -> Self {
+    let t = self.t();
+    t.matmul(self).inv().matmul(&t)
+  }
+}
+
+impl<T, const M: usize> Matrix<T, M, 1> {
+  pub fn squeeze(self) -> Vector<T, M> {
+    let Matrix(Vector([v])) = self;
+    v
   }
 }
 

@@ -36,3 +36,11 @@ pub mod serde;
 
 #[cfg(feature = "quickcheck")]
 pub mod quickcheck;
+
+/// Convenience functions for Mueller matrices
+#[cfg(feature = "mueller")]
+pub mod mueller;
+
+/// Convenience functions for stokes vectors
+#[cfg(feature = "stokes")]
+pub mod stokes;

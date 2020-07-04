@@ -38,8 +38,8 @@ impl<T: Float, const N: usize> Mul for Transform<T, N> {
   type Output = Transform<T, N>;
   fn mul(self, o: Self) -> Self::Output {
     Self::Output {
-      fwd: self.fwd.matmul(o.fwd),
-      bkwd: o.bkwd.matmul(self.bkwd),
+      fwd: self.fwd.matmul(&o.fwd),
+      bkwd: o.bkwd.matmul(&self.bkwd),
     }
   }
 }

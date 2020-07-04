@@ -1,5 +1,5 @@
 #![allow(clippy::many_single_char_names)]
-use crate::num::DefaultFloat;
+use crate::{num::DefaultFloat, Matrix};
 use num::{Float, One, Zero};
 use std::{
   borrow::{Borrow, BorrowMut},
@@ -42,14 +42,25 @@ impl<T: Copy, const N: usize> Vector<T, N> {
     forget(out);
     Vector(res)
   }
+  #[inline]
+  pub fn fold<F, S>(self, init: S, mut f: F) -> S
+  where
+    F: FnMut(S, T) -> S, {
+    let mut curr = init;
+    for i in 0..N {
+      curr = f(curr, self[i]);
+    }
+    curr
+  }
 }
+
 impl<T, const N: usize> Vector<T, N> {
   pub fn with<F>(mut f: F) -> Self
   where
     F: FnMut(usize) -> T, {
     let mut out: [MaybeUninit<T>; N] = unsafe { MaybeUninit::uninit().assume_init() };
-    for i in 0..N {
-      out[i] = MaybeUninit::new(f(i));
+    for (i, v) in out.iter_mut().enumerate().take(N) {
+      *v = MaybeUninit::new(f(i));
     }
     let ptr = &mut out as *mut _ as *mut [T; N];
     let res = unsafe { ptr.read() };
@@ -71,7 +82,11 @@ impl<T: Zero + Copy, const N: usize> Vector<T, N> {
   }
 }
 
-impl<T: Float + Zero, const N: usize> Vector<T, N> {
+impl<T: Float, const N: usize> Vector<T, N> {
+  pub fn linspace(a: T, b: T) -> Self {
+    let delta = (a - b) / (T::from(N).unwrap());
+    Self::with(|i| a + delta * T::from(i).unwrap())
+  }
   /// Takes the dot product of two vectors
   pub fn dot(&self, o: &Self) -> T { (0..N).fold(T::zero(), |acc, n| acc + self.0[n] * o.0[n]) }
   /// Computes the sqr_magnitude of the vector
@@ -158,6 +173,8 @@ impl<T: Float + Zero, const N: usize> Vector<T, N> {
     let similarity = self.magn() * self.dot(onto);
     onto.norm() * similarity
   }
+  pub fn row_vector(self) -> Matrix<T, 1, N> { self.col_vector().t() }
+  pub fn col_vector(self) -> Matrix<T, N, 1> { Matrix(Vector([self])) }
 }
 
 impl<const N: usize> Vector<bool, N> {
@@ -245,8 +262,11 @@ impl<T: Float> Vec2<T> {
   }
 }
 
-impl<T: Float> Vec4<T> {
+impl<T> Vec4<T> {
   pub fn new(a: T, b: T, c: T, w: T) -> Self { Vector([a, b, c, w]) }
+}
+
+impl<T: Float> Vec4<T> {
   pub fn x(&self) -> T { self[0] }
   pub fn y(&self) -> T { self[1] }
   pub fn z(&self) -> T { self[2] }
