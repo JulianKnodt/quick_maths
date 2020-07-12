@@ -1,5 +1,10 @@
 #![allow(incomplete_features)]
-#![feature(const_generics, const_generic_impls_guard, maybe_uninit_uninit_array)]
+#![feature(
+  const_generics,
+  const_generic_impls_guard,
+  maybe_uninit_uninit_array,
+  new_uninit
+)]
 
 // Linear algebra modules
 /// Matrix definitions
@@ -37,6 +42,7 @@ pub mod serde;
 #[cfg(feature = "quickcheck")]
 pub mod quickcheck;
 
+/*
 /// Convenience functions for Mueller matrices
 #[cfg(feature = "mueller")]
 pub mod mueller;
@@ -47,3 +53,7 @@ pub mod stokes;
 
 #[cfg(feature = "masked")]
 pub mod masked;
+*/
+
+/// Dynamic vectors and matrices.
+pub mod dynamic;
