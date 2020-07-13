@@ -175,6 +175,7 @@ impl<T: Float, const N: usize> Vector<T, N> {
   }
   pub fn row_vector(self) -> Matrix<T, 1, N> { self.col_vector().t() }
   pub fn col_vector(self) -> Matrix<T, N, 1> { Matrix(Vector([self])) }
+  pub fn bisector(&self, o: &Self) -> Self { *self * o.magn() + *o * self.magn() }
 }
 
 impl<const N: usize> Vector<bool, N> {
@@ -199,6 +200,14 @@ impl<const N: usize> Vector<bool, N> {
 impl<T> Vec3<T> {
   pub fn new(a: T, b: T, c: T) -> Self { Vector([a, b, c]) }
 }
+impl<T: Copy> Vec3<T> {
+  /// X component of this vector
+  pub fn x(&self) -> T { self[0] }
+  /// Y component of this vector
+  pub fn y(&self) -> T { self[1] }
+  /// Z component of this vector
+  pub fn z(&self) -> T { self[2] }
+}
 
 impl<T: Float> Vec3<T> {
   /// Takes the cross product of self with other
@@ -221,13 +230,6 @@ impl<T: Float> Vec3<T> {
     let &Vector([x, y, z]) = self;
     Vec2::new(x / z, y / z)
   }
-
-  /// X component of this vector
-  pub fn x(&self) -> T { self[0] }
-  /// Y component of this vector
-  pub fn y(&self) -> T { self[1] }
-  /// Z component of this vector
-  pub fn z(&self) -> T { self[2] }
 }
 
 impl<T: Copy> Vec2<T> {

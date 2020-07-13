@@ -56,4 +56,6 @@ pub mod masked;
 */
 
 /// Dynamic vectors and matrices.
-pub mod dynamic;
+// TODO move this to the dynamics folder
+mod dynamics;
+pub use dynamics::{Array, DynTensor};
