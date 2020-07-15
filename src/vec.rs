@@ -175,7 +175,36 @@ impl<T: Float, const N: usize> Vector<T, N> {
   }
   pub fn row_vector(self) -> Matrix<T, 1, N> { self.col_vector().t() }
   pub fn col_vector(self) -> Matrix<T, N, 1> { Matrix(Vector([self])) }
+  /// Computes the bisector of two vectors = (a,b) => |a|*b + |b|*a;
   pub fn bisector(&self, o: &Self) -> Self { *self * o.magn() + *o * self.magn() }
+  /// Convolves self with other, returning a vector of the same size
+  pub fn convolve<const M: usize>(&self, o: &Vector<T, M>) -> Self {
+    let mut out: Self = Vector::zero();
+    for i in 0..N {
+      for j in 0..M {
+        if let Some(k) = j.checked_sub(M / 2).filter(|&k| k < N) {
+          out[i] = out[i] + self[k] * o[j];
+        }
+      }
+    }
+    out
+  }
+  pub fn scatter_fn<const M: usize>(
+    &self,
+    idx: &Vector<usize, N>,
+    base: T,
+    acc: impl Fn(T, T) -> T,
+  ) -> Vector<T, M> {
+    let mut out = Vector::of(base);
+    for i in 0..N {
+      assert!(
+        idx[i] < M,
+        "Index in index vector larger than expected output"
+      );
+      out[idx[i]] = acc(out[i], self[i]);
+    }
+    out
+  }
 }
 
 impl<const N: usize> Vector<bool, N> {
