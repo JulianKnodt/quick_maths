@@ -2,7 +2,6 @@
 use crate::{num::DefaultFloat, Matrix};
 use num::{Float, One, Zero};
 use std::{
-  borrow::{Borrow, BorrowMut},
   cmp::Ordering,
   fmt::{self, Debug},
   mem::{forget, MaybeUninit},
@@ -52,6 +51,14 @@ impl<T: Copy, const N: usize> Vector<T, N> {
     }
     curr
   }
+  /// X component of this vector, panics if out of range
+  pub fn x(&self) -> T { self[0] }
+  /// Y component of this vector, panics if out of range
+  pub fn y(&self) -> T { self[1] }
+  /// Z component of this vector, panics if out of range
+  pub fn z(&self) -> T { self[2] }
+  /// W componenent of this vector, panics if out of range
+  pub fn w(&self) -> T { self[3] }
 }
 
 impl<T, const N: usize> Vector<T, N> {
@@ -67,6 +74,8 @@ impl<T, const N: usize> Vector<T, N> {
     forget(out);
     Vector(res)
   }
+  pub fn iter(&self) -> impl Iterator<Item = &T> { self.0.iter() }
+  pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> { self.0.iter_mut() }
 }
 
 impl<T: Zero + Copy, const N: usize> Vector<T, N> {
@@ -88,7 +97,7 @@ impl<T: Float, const N: usize> Vector<T, N> {
     Self::with(|i| a + delta * T::from(i).unwrap())
   }
   /// Takes the dot product of two vectors
-  pub fn dot(&self, o: &Self) -> T { (0..N).fold(T::zero(), |acc, n| acc + self.0[n] * o.0[n]) }
+  pub fn dot(&self, o: &Self) -> T { (0..N).fold(T::zero(), |acc, n| acc + self[n] * o[n]) }
   /// Computes the sqr_magnitude of the vector
   pub fn sqr_magn(&self) -> T { self.dot(self) }
   /// Takes the magnitude of the vector
@@ -157,6 +166,7 @@ impl<T: Float, const N: usize> Vector<T, N> {
     out
   }
 
+  /// Takes the minimal and maximal elements from self and o and returns those vectors
   pub fn sift(&self, o: &Self) -> (Self, Self) {
     let mut min = *self;
     let mut max = *o;
@@ -173,8 +183,9 @@ impl<T: Float, const N: usize> Vector<T, N> {
     let similarity = self.magn() * self.dot(onto);
     onto.norm() * similarity
   }
-  pub fn row_vector(self) -> Matrix<T, 1, N> { self.col_vector().t() }
   pub fn col_vector(self) -> Matrix<T, N, 1> { Matrix(Vector([self])) }
+  pub fn row_vector(self) -> Matrix<T, 1, N> { self.col_vector().t() }
+
   /// Computes the bisector of two vectors = (a,b) => |a|*b + |b|*a;
   pub fn bisector(&self, o: &Self) -> Self { *self * o.magn() + *o * self.magn() }
   /// Convolves self with other, returning a vector of the same size
@@ -189,12 +200,12 @@ impl<T: Float, const N: usize> Vector<T, N> {
     }
     out
   }
-  pub fn scatter_fn<const M: usize>(
+  pub fn scatter_fn<S: Copy, const M: usize>(
     &self,
     idx: &Vector<usize, N>,
-    base: T,
-    acc: impl Fn(T, T) -> T,
-  ) -> Vector<T, M> {
+    base: S,
+    acc: impl Fn(S, T) -> S,
+  ) -> Vector<S, M> {
     let mut out = Vector::of(base);
     for i in 0..N {
       assert!(
@@ -208,34 +219,12 @@ impl<T: Float, const N: usize> Vector<T, N> {
 }
 
 impl<const N: usize> Vector<bool, N> {
-  pub fn any(&self) -> bool {
-    for i in 0..N {
-      if self[i] {
-        return true;
-      }
-    }
-    false
-  }
-  pub fn all(&self) -> bool {
-    for i in 0..N {
-      if !self[i] {
-        return false;
-      }
-    }
-    true
-  }
+  pub fn any(&self) -> bool { self.iter().any(|&l| l) }
+  pub fn all(&self) -> bool { self.iter().all(|&l| l) }
 }
 
 impl<T> Vec3<T> {
-  pub fn new(a: T, b: T, c: T) -> Self { Vector([a, b, c]) }
-}
-impl<T: Copy> Vec3<T> {
-  /// X component of this vector
-  pub fn x(&self) -> T { self[0] }
-  /// Y component of this vector
-  pub fn y(&self) -> T { self[1] }
-  /// Z component of this vector
-  pub fn z(&self) -> T { self[2] }
+  pub const fn new(a: T, b: T, c: T) -> Self { Vector([a, b, c]) }
 }
 
 impl<T: Float> Vec3<T> {
@@ -245,6 +234,7 @@ impl<T: Float> Vec3<T> {
     let [x, y, z] = o.0;
     Vec3::new(b * z - c * y, c * x - a * z, a * y - b * x)
   }
+  /// Whether or not self is aligned on the right or left hand side of normal w.r.t o.
   pub fn sided(&self, o: &Self, normal: &Self) -> bool {
     self.cross(o).dot(normal).is_sign_positive()
   }
@@ -261,10 +251,11 @@ impl<T: Float> Vec3<T> {
   }
 }
 
+impl<T> Vec2<T> {
+  pub const fn new(a: T, b: T) -> Self { Vector([a, b]) }
+}
+
 impl<T: Copy> Vec2<T> {
-  pub fn new(a: T, b: T) -> Self { Vector([a, b]) }
-  pub fn x(&self) -> T { self[0] }
-  pub fn y(&self) -> T { self[1] }
   pub fn flip(&self) -> Self {
     let [i, j] = self.0;
     Vec2::new(j, i)
@@ -294,14 +285,10 @@ impl<T: Float> Vec2<T> {
 }
 
 impl<T> Vec4<T> {
-  pub fn new(a: T, b: T, c: T, w: T) -> Self { Vector([a, b, c, w]) }
+  pub const fn new(a: T, b: T, c: T, w: T) -> Self { Vector([a, b, c, w]) }
 }
 
 impl<T: Float> Vec4<T> {
-  pub fn x(&self) -> T { self[0] }
-  pub fn y(&self) -> T { self[1] }
-  pub fn z(&self) -> T { self[2] }
-  pub fn w(&self) -> T { self[3] }
   pub fn homogenize(&self) -> Vec3<T> {
     let &Vector([x, y, z, w]) = self;
     Vec3::new(x / w, y / w, z / w)
@@ -314,53 +301,36 @@ impl<T, const N: usize> AsRef<[T]> for Vector<T, N> {
   fn as_ref(&self) -> &[T] { &self.0 }
 }
 
-impl<T, const N: usize> Borrow<[T]> for Vector<T, N> {
-  fn borrow(&self) -> &[T] { &self.0 }
-}
-
-impl<T, const N: usize> BorrowMut<[T]> for Vector<T, N> {
-  fn borrow_mut(&mut self) -> &mut [T] { &mut self.0 }
-}
-
 // Op implementations
 
 impl<T: Float, const N: usize> One for Vector<T, N> {
   fn one() -> Self { Vector([T::one(); N]) }
-  fn is_one(&self) -> bool { self.0.iter().all(T::is_one) }
+  fn is_one(&self) -> bool { self.iter().all(T::is_one) }
 }
 
 impl<T: Zero + Copy, const N: usize> Zero for Vector<T, N> {
   fn zero() -> Self { Vector([T::zero(); N]) }
-  fn is_zero(&self) -> bool { self.0.iter().all(T::is_zero) }
+  fn is_zero(&self) -> bool { self.iter().all(T::is_zero) }
 }
 
-impl<T, const N: usize> Index<usize> for Vector<T, N> {
-  type Output = T;
-  fn index(&self, i: usize) -> &Self::Output { &self.0[i] }
+use std::slice::SliceIndex;
+impl<R: SliceIndex<[T]>, T, const N: usize> Index<R> for Vector<T, N> {
+  type Output = R::Output;
+  fn index(&self, r: R) -> &Self::Output { &self.0[r] }
 }
 
-impl<T, const N: usize> IndexMut<usize> for Vector<T, N> {
-  fn index_mut(&mut self, i: usize) -> &mut Self::Output { &mut self.0[i] }
+impl<R: SliceIndex<[T]>, T, const N: usize> IndexMut<R> for Vector<T, N> {
+  fn index_mut(&mut self, i: R) -> &mut Self::Output { &mut self.0[i] }
 }
 
 impl<T: Neg<Output = T> + Copy, const N: usize> Neg for Vector<T, N> {
   type Output = Self;
-  fn neg(mut self) -> Self::Output {
-    for i in 0..N {
-      self[i] = -self[i];
-    }
-    self
-  }
+  fn neg(self) -> Self::Output { self.apply_fn(|v| -v) }
 }
 
 impl<T: Not<Output = T> + Copy, const N: usize> Not for Vector<T, N> {
   type Output = Self;
-  fn not(mut self) -> Self::Output {
-    for i in 0..N {
-      self[i] = !self[i];
-    }
-    self
-  }
+  fn not(self) -> Self::Output { self.apply_fn(|v| !v) }
 }
 
 macro_rules! vec_op {
@@ -426,14 +396,14 @@ macro_rules! assign_op {
     impl<T: $t + Copy, const N: usize> $t<T> for Vector<T, N> {
       fn $func(&mut self, o: T) {
         for i in 0..N {
-          self.0[i] $op o;
+          self[i] $op o;
         }
       }
     }
     impl<T: $t + Copy, const N: usize> $t for Vector<T, N> {
       fn $func(&mut self, o: Self) {
         for i in 0..N {
-          self.0[i] $op o.0[i];
+          self[i] $op o[i];
         }
       }
     }
@@ -458,8 +428,8 @@ macro_rules! elemwise_impl {
     #[doc="."]
     pub fn $func(&self) -> Self { self.apply_fn($call) }
   };
-  ($func: ident, $call: path) => {
-    elemwise_impl!($func, $call, stringify!($func));
+  ($($func: ident, $call: path;)*) => {
+    $(elemwise_impl!($func, $call, stringify!($func));)*
   };
 }
 
@@ -476,51 +446,63 @@ macro_rules! curried_elemwise_impl {
 }
 impl<T: Float, const N: usize> Vector<T, N> {
   // Trigonometric stuff
-  elemwise_impl!(cos, T::cos);
-  elemwise_impl!(sin, T::sin);
-  elemwise_impl!(tan, T::tan);
+  elemwise_impl!(
+    cos, T::cos;
+    sin, T::sin;
+    tan, T::tan;
 
-  elemwise_impl!(acos, T::acos);
-  elemwise_impl!(asin, T::asin);
-  elemwise_impl!(atan, T::atan);
+    acos, T::acos;
+    asin, T::asin;
+    atan, T::atan;
 
-  elemwise_impl!(acosh, T::acosh);
-  elemwise_impl!(asinh, T::asinh);
-  elemwise_impl!(atanh, T::atanh);
+    acosh, T::acosh;
+    asinh, T::asinh;
+    atanh, T::atanh;
+  );
+
   curried_elemwise_impl!(atan2, T::atan2);
   curried_elemwise_impl!(hypot, T::hypot);
 
   // Rounding stuff
-  elemwise_impl!(ceil, T::ceil);
-  elemwise_impl!(floor, T::floor);
-  elemwise_impl!(round, T::round);
+  elemwise_impl!(
+    ceil, T::ceil;
+    floor, T::floor;
+    round, T::round;
+  );
 
   // Decomposition stuff
-  elemwise_impl!(fract, T::fract);
-  elemwise_impl!(trunc, T::trunc);
+  elemwise_impl!(
+    fract, T::fract;
+    trunc, T::trunc;
+  );
 
   // Sign value stuff
-  elemwise_impl!(abs, T::abs);
+  elemwise_impl!(
+    abs, T::abs;
+    signum, T::signum;
+  );
   curried_elemwise_impl!(abs_sub, T::abs_sub);
-  elemwise_impl!(signum, T::signum);
 
   pub fn is_sign_positive(&self) -> Vector<bool, N> { self.apply_fn(T::is_sign_positive) }
-
   pub fn is_sign_negative(&self) -> Vector<bool, N> { self.apply_fn(T::is_sign_negative) }
 
   // Reciprocal
-  elemwise_impl!(recip, T::recip);
+  elemwise_impl!(
+    recip, T::recip;
+  );
 
   // Logarithmic stuff
-  elemwise_impl!(log2, T::log2);
-  elemwise_impl!(log10, T::log10);
-  elemwise_impl!(ln, T::ln);
-  elemwise_impl!(ln_1p, T::ln_1p);
-  elemwise_impl!(exp, T::exp);
-  elemwise_impl!(exp2, T::exp2);
-  elemwise_impl!(exp_m1, T::exp_m1);
-  elemwise_impl!(sqrt, T::sqrt);
-  elemwise_impl!(cbrt, T::cbrt);
+  elemwise_impl!(
+    log2, T::log2;
+    log10, T::log10;
+    ln, T::ln;
+    ln_1p, T::ln_1p;
+    exp, T::exp;
+    exp2, T::exp2;
+    exp_m1, T::exp_m1;
+    sqrt, T::sqrt;
+    cbrt, T::cbrt;
+  );
   curried_elemwise_impl!(powf, T::powf);
   pub fn powi(&self, v: i32) -> Self { self.apply_fn(|u| u.powi(v)) }
   curried_elemwise_impl!(log, T::log);
@@ -530,8 +512,10 @@ impl<T: Float, const N: usize> Vector<T, N> {
   curried_elemwise_impl!(min, T::min);
 
   // Degree related stuff
-  elemwise_impl!(to_degrees, T::to_degrees);
-  elemwise_impl!(to_radians, T::to_radians);
+  elemwise_impl!(
+    to_degrees, T::to_degrees;
+    to_radians, T::to_radians;
+  );
 }
 
 //// Trait Implementations for Vector below
@@ -549,36 +533,29 @@ impl<T: Clone, const N: usize> Clone for Vector<T, N> {
   }
   fn clone_from(&mut self, source: &Self) {
     for i in 0..N {
-      self[i] = source[i].clone();
+      self[i].clone_from(&source[i]);
     }
   }
 }
 impl<T: Copy, const N: usize> Copy for Vector<T, N> {}
 impl<T: PartialOrd, const N: usize> PartialOrd for Vector<T, N> {
   fn partial_cmp(&self, o: &Self) -> Option<Ordering> {
-    PartialOrd::partial_cmp(&&self.0[..], &&o.0[..])
+    PartialOrd::partial_cmp(&&self[..], &&o[..])
   }
 }
 
 impl<T: Ord, const N: usize> Ord for Vector<T, N> {
-  fn cmp(&self, o: &Self) -> Ordering { Ord::cmp(&&self.0[..], &&o.0[..]) }
+  fn cmp(&self, o: &Self) -> Ordering { Ord::cmp(&&self[..], &&o[..]) }
 }
 
 impl<T: Debug, const N: usize> Debug for Vector<T, N> {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    f.debug_list().entries(self.0.iter()).finish()
+    f.debug_list().entries(self.iter()).finish()
   }
 }
 
 impl<T: PartialEq, const N: usize> PartialEq for Vector<T, N> {
-  fn eq(&self, o: &Self) -> bool {
-    for i in 0..N {
-      if self[i] != o[i] {
-        return false;
-      }
-    }
-    true
-  }
+  fn eq(&self, o: &Self) -> bool { self.iter().zip(o.iter()).all(|(a, b)| a == b) }
 }
 impl<T: Eq, const N: usize> Eq for Vector<T, N> {}
 

@@ -29,13 +29,14 @@ impl<T, const M: usize, const N: usize> Matrix<T, M, N> {
   pub fn x_y_iter(&self) -> impl Iterator<Item = &T> + '_ {
     (0..M).flat_map(move |y| (0..N).map(move |x| &self[x][y]))
   }
+  pub fn col_iter(&self) -> impl Iterator<Item = &Vector<T, M>> { self.0.iter() }
 }
 
 impl<T: Float, const M: usize, const N: usize> Matrix<T, M, N> {
   pub fn dot(&self, vec: &Vector<T, N>) -> Vector<T, M> {
     let mut out: Vector<T, M> = Vector::zero();
     for i in 0..N {
-      out = out + self.0[i] * vec[i];
+      out = out + self[i] * vec[i];
     }
     out
   }
@@ -492,8 +493,7 @@ def_op!(Div, div, /);
 
 macro_rules! def_scalar_op {
   ($ty: ty, $func: ident, $op: tt) => {
-    impl<T: Float, const M: usize, const N: usize> $ty for Matrix<T, M, N>
-    {
+    impl<T: Float, const M: usize, const N: usize> $ty for Matrix<T, M, N> {
       type Output = Self;
       fn $func(mut self, o: T) -> Self {
         for x in 0..N {
@@ -541,8 +541,8 @@ macro_rules! elemwise_impl {
     #[doc="."]
     pub fn $func(&self) -> Self { self.apply_fn($call) }
   };
-  ($func: ident, $call: path) => {
-    elemwise_impl!($func, $call, stringify!($func));
+  ($($func: ident, $call: path;)*) => {
+    $(elemwise_impl!($func, $call, stringify!($func));)*
   };
 }
 
@@ -559,47 +559,61 @@ macro_rules! curried_elemwise_impl {
 }
 impl<T: Float, const M: usize, const N: usize> Matrix<T, M, N> {
   // Trigonometric stuff
-  elemwise_impl!(cos, T::cos);
-  elemwise_impl!(sin, T::sin);
-  elemwise_impl!(tan, T::tan);
+  elemwise_impl!(
+    cos, T::cos;
+    sin, T::sin;
+    tan, T::tan;
 
-  elemwise_impl!(acos, T::acos);
-  elemwise_impl!(asin, T::asin);
-  elemwise_impl!(atan, T::atan);
+    acos, T::acos;
+    asin, T::asin;
+    atan, T::atan;
 
-  elemwise_impl!(acosh, T::acosh);
-  elemwise_impl!(asinh, T::asinh);
-  elemwise_impl!(atanh, T::atanh);
+    acosh, T::acosh;
+    asinh, T::asinh;
+    atanh, T::atanh;
+  );
+
   curried_elemwise_impl!(atan2, T::atan2);
   curried_elemwise_impl!(hypot, T::hypot);
 
   // Rounding stuff
-  elemwise_impl!(ceil, T::ceil);
-  elemwise_impl!(floor, T::floor);
-  elemwise_impl!(round, T::round);
+  elemwise_impl!(
+    ceil, T::ceil;
+    floor, T::floor;
+    round, T::round;
+  );
 
   // Decomposition stuff
-  elemwise_impl!(fract, T::fract);
-  elemwise_impl!(trunc, T::trunc);
+  elemwise_impl!(
+    fract, T::fract;
+    trunc, T::trunc;
+  );
 
   // Sign value stuff
-  elemwise_impl!(abs, T::abs);
   curried_elemwise_impl!(abs_sub, T::abs_sub);
-  elemwise_impl!(signum, T::signum);
+  elemwise_impl!(
+    abs, T::abs;
+    signum, T::signum;
+  );
 
   // Reciprocal
-  elemwise_impl!(recip, T::recip);
+  elemwise_impl!(
+    recip, T::recip;
+  );
 
   // Logarithmic stuff
-  elemwise_impl!(log2, T::log2);
-  elemwise_impl!(log10, T::log10);
-  elemwise_impl!(ln, T::ln);
-  elemwise_impl!(ln_1p, T::ln_1p);
-  elemwise_impl!(exp, T::exp);
-  elemwise_impl!(exp2, T::exp2);
-  elemwise_impl!(exp_m1, T::exp_m1);
-  elemwise_impl!(sqrt, T::sqrt);
-  elemwise_impl!(cbrt, T::cbrt);
+  elemwise_impl!(
+    log2, T::log2;
+    log10, T::log10;
+    ln, T::ln;
+    ln_1p, T::ln_1p;
+    exp, T::exp;
+    exp2, T::exp2;
+    exp_m1, T::exp_m1;
+    sqrt, T::sqrt;
+    cbrt, T::cbrt;
+  );
+
   curried_elemwise_impl!(powf, T::powf);
   pub fn powi(&self, v: i32) -> Self { self.apply_fn(|u| u.powi(v)) }
   curried_elemwise_impl!(log, T::log);
@@ -609,6 +623,8 @@ impl<T: Float, const M: usize, const N: usize> Matrix<T, M, N> {
   curried_elemwise_impl!(min, T::min);
 
   // Degree related stuff
-  elemwise_impl!(to_degrees, T::to_degrees);
-  elemwise_impl!(to_radians, T::to_radians);
+  elemwise_impl!(
+    to_degrees, T::to_degrees;
+    to_radians, T::to_radians;
+  );
 }

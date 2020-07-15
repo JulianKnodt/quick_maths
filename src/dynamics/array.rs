@@ -5,6 +5,7 @@ use std::ops::{Add, Div, Index, IndexMut, Mul, Sub};
 /// Analog to numpy arrays, fully dynamic dimensions
 #[derive(Debug, Clone)]
 pub struct Array<T = f32> {
+  // TODO add an offset to represent offsets from base?
   shape: Box<[u32]>,
   data: Box<[T]>,
 }
@@ -23,10 +24,22 @@ impl<T: Zero> Array<T> {
 impl<T> Array<T> {
   pub fn len(&self) -> u32 { self.shape.iter().product() }
   pub fn is_empty(&self) -> bool { self.shape.iter().any(|&v| v == 0) }
-  pub fn from_iter(shape: Box<[u32]>, data: impl Iterator<Item = T>) -> Self {
-    let data = data.collect::<Vec<_>>().into_boxed_slice();
+  pub fn reshape(&mut self, i: impl Into<Box<[u32]>>) {
+    let shape = i.into();
+    assert_eq!(
+      shape.iter().product::<u32>(),
+      self.shape.iter().product(),
+      "Cannot reshape {:?} into {:?}",
+      self.shape,
+      shape
+    );
+    self.shape = shape;
+  }
+  pub fn from_iter(shape: Box<[u32]>, data: impl IntoIterator<Item = T>) -> Self {
+    let data = data.into_iter().collect::<Vec<_>>().into_boxed_slice();
     Self { shape, data }
   }
+  pub fn t(&mut self) { self.shape.reverse(); }
   pub fn iter(&self) -> impl Iterator<Item = &T> { self.data.iter() }
   fn index(&self, i: impl AsRef<[u32]>) -> u32 {
     let idx = i.as_ref();
