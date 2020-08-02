@@ -4,18 +4,18 @@ use std::mem::MaybeUninit;
 
 #[derive(Debug, Clone)]
 /// A Tensor which only specifies the number of dimensions
-pub struct DynTensor<T = f32, const D: usize> {
-  shape: Vector<usize, D>,
+pub struct DynTensor<const D: usize, T = f32> {
+  shape: Vector<D, usize>,
   // strides: Vector<usize, D>,
   data: Box<[T]>,
 }
 
-impl<T, const D: usize> DynTensor<T, D> {
+impl<T, const D: usize> DynTensor<D, T> {
   pub fn len(&self) -> usize { self.shape.0.iter().product() }
   pub fn is_empty(&self) -> bool { self.shape.0.iter().any(|&v| v == 0) }
   pub fn shape(&self) -> &[usize; D] { &self.shape.0 }
   pub fn iter(&self) -> impl Iterator<Item = &T> { self.data.iter() }
-  pub fn reshape<const D2: usize>(self, new_shape: Vector<usize, D2>) -> DynTensor<T, D2> {
+  pub fn reshape<const D2: usize>(self, new_shape: Vector<D2, usize>) -> DynTensor<D2, T> {
     assert_eq!(
       new_shape.0.iter().product::<usize>(),
       self.shape.0.iter().product::<usize>(),
@@ -45,12 +45,12 @@ impl<T, const D: usize> DynTensor<T, D> {
 
 trait TensorMul<T, const I: usize> {
   type Output;
-  fn dot(&self, rh: DynTensor<T, I>) -> Self::Output;
+  fn dot(&self, rh: DynTensor<I, T>) -> Self::Output;
 }
 
-impl<T: Float> TensorMul<T, 1> for DynTensor<T, 1> {
+impl<T: Float> TensorMul<T, 1> for DynTensor<1, T> {
   type Output = T;
-  fn dot(&self, rhs: DynTensor<T, 1>) -> Self::Output {
+  fn dot(&self, rhs: DynTensor<1, T>) -> Self::Output {
     assert_eq!(
       self.shape, rhs.shape,
       "Length Mismatch between dot product of dyn vectors"
@@ -64,9 +64,9 @@ impl<T: Float> TensorMul<T, 1> for DynTensor<T, 1> {
   }
 }
 
-impl<T: Float> TensorMul<T, 1> for DynTensor<T, 2> {
+impl<T: Float> TensorMul<T, 1> for DynTensor<2, T> {
   type Output = T;
-  fn dot(&self, rhs: DynTensor<T, 1>) -> Self::Output {
+  fn dot(&self, rhs: DynTensor<1, T>) -> Self::Output {
     assert_eq!(
       self.shape[1], rhs.shape[0],
       "Length Mismatch between {:?} {:?}",
@@ -76,18 +76,18 @@ impl<T: Float> TensorMul<T, 1> for DynTensor<T, 2> {
   }
 }
 
-impl<T, const N: usize> Vector<T, N> {
-  pub fn dyn_tensor(self) -> DynTensor<T, 1> {
+impl<T, const N: usize> Vector<N, T> {
+  pub fn dyn_tensor(self) -> DynTensor<1, T> {
     let shape = Vector([N]);
     let data = Box::new(self.0);
     DynTensor { shape, data }
   }
 }
 
-impl<T: Copy, const N: usize, const M: usize> Matrix<T, M, N> {
+impl<T: Copy, const N: usize, const M: usize> Matrix<M, N, T> {
   // currently this still allocates even though we're bringing in exactly enough memory in the
   // correct format. I'm not sure how to fix this.
-  pub fn dyn_tensor(self) -> DynTensor<T, 2> {
+  pub fn dyn_tensor(self) -> DynTensor<2, T> {
     let shape = Vector([M, N]);
     let mut data = Box::new_uninit_slice(M * N);
     let data = unsafe {
@@ -105,8 +105,8 @@ impl<T: Copy, const N: usize, const M: usize> Matrix<T, M, N> {
 macro_rules! impl_bin_op {
   ($(impl $typ: ident, $func: ident, $op: tt;)*) => {
     $(
-      impl<T: $typ + Copy, const D: usize> $typ for DynTensor<T, D> {
-        type Output = DynTensor<T::Output, D>;
+      impl<T: $typ + Copy, const D: usize> $typ for DynTensor<D, T> {
+        type Output = DynTensor<D, T::Output>;
         fn $func(self, o: Self) -> Self::Output {
           assert_eq!(self.shape, o.shape, "Currently only supports inputs of same size");
           let iter = self.iter().zip(o.iter()).map(|(&l, &r)| l $op r);

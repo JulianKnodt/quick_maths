@@ -1,4 +1,4 @@
-use crate::{num::DefaultFloat, Float, Mat2, Mat3, Mat4, Matrix, Ray, Vec2, Vec3, Vec4, Vector};
+use crate::{num::DefaultFloat, Float, Mat2, Mat3, Mat4, Matrix, Ray3, Vec2, Vec3, Vec4, Vector};
 use num::One;
 use std::ops::Mul;
 
@@ -6,19 +6,19 @@ use std::ops::Mul;
 /// i.e. rotation in 3D, translation, etc.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Transform<T = DefaultFloat, const N: usize> {
+pub struct Transform<const N: usize, T = DefaultFloat> {
   /// Forward transformation
-  pub fwd: Matrix<T, N, N>,
+  pub fwd: Matrix<N, N, T>,
   /// Inverted transformation
-  pub bkwd: Matrix<T, N, N>,
+  pub bkwd: Matrix<N, N, T>,
 }
 
 /// 3D transformation, where 4 represents the dimension of the matrix used.
-pub type Transform4<T = DefaultFloat> = Transform<T, 4>;
+pub type Transform4<T = DefaultFloat> = Transform<4, T>;
 /// 2D transformation, where 3 represents the dimension of the matrix used.
-pub type Transform3<T = DefaultFloat> = Transform<T, 3>;
+pub type Transform3<T = DefaultFloat> = Transform<3, T>;
 
-impl<T: Float, const N: usize> Transform<T, N> {
+impl<T: Float, const N: usize> Transform<N, T> {
   pub fn identity() -> Self {
     Self {
       fwd: Matrix::one(),
@@ -34,8 +34,8 @@ impl<T: Float, const N: usize> Transform<T, N> {
   }
 }
 
-impl<T: Float, const N: usize> Mul for Transform<T, N> {
-  type Output = Transform<T, N>;
+impl<T: Float, const N: usize> Mul for Transform<N, T> {
+  type Output = Transform<N, T>;
   fn mul(self, o: Self) -> Self::Output {
     Self::Output {
       fwd: self.fwd.matmul(&o.fwd),
@@ -126,8 +126,8 @@ impl<T: Float> Transform4<T> {
   }
   /// Applies this transform to a ray (convenience for applying point to origin and vector to
   /// direction)
-  pub fn apply_ray(&self, r: &Ray<T>) -> Ray<T> {
-    Ray::new(self.apply_point(&r.pos), self.apply_vec(&r.dir))
+  pub fn apply_ray(&self, r: &Ray3<T>) -> Ray3<T> {
+    Ray3::new(self.apply_point(&r.pos), self.apply_vec(&r.dir))
   }
 }
 

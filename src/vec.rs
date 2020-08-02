@@ -13,23 +13,23 @@ use std::{
 
 /// Vector over floats and a const-size.
 /// Often used through Vec2, Vec3, and Vec4 instead of the raw struct.
-pub struct Vector<T = DefaultFloat, const N: usize>(pub [T; N]);
+pub struct Vector<const N: usize, T = DefaultFloat>(pub [T; N]);
 
 /// 2D vector with default float type (f32).
-pub type Vec2<T = DefaultFloat> = Vector<T, 2>;
+pub type Vec2<T = DefaultFloat> = Vector<2, T>;
 /// 3D vector with default float type (f32).
-pub type Vec3<T = DefaultFloat> = Vector<T, 3>;
+pub type Vec3<T = DefaultFloat> = Vector<3, T>;
 /// 4D vector with default float type (f32).
 /// Often implicitly created by Vec3::homogeneous.
-pub type Vec4<T = DefaultFloat> = Vector<T, 4>;
+pub type Vec4<T = DefaultFloat> = Vector<4, T>;
 
-impl<T: Copy, const N: usize> Vector<T, N> {
+impl<T: Copy, const N: usize> Vector<N, T> {
   /// Creates a vector of the value v (every element = v).
   pub fn of(v: T) -> Self { Vector([v; N]) }
 
   /// Applies this function to every vector value.
   #[inline]
-  pub fn apply_fn<F, S>(self, mut f: F) -> Vector<S, N>
+  pub fn apply_fn<F, S>(self, mut f: F) -> Vector<N, S>
   where
     F: FnMut(T) -> S, {
     let mut out: [MaybeUninit<S>; N] = unsafe { MaybeUninit::uninit().assume_init() };
@@ -51,6 +51,7 @@ impl<T: Copy, const N: usize> Vector<T, N> {
     }
     curr
   }
+  pub fn cast<S: From<T>>(self) -> Vector<N, S> { self.apply_fn(|v| v.into()) }
   /// X component of this vector, panics if out of range
   pub fn x(&self) -> T { self[0] }
   /// Y component of this vector, panics if out of range
@@ -61,7 +62,7 @@ impl<T: Copy, const N: usize> Vector<T, N> {
   pub fn w(&self) -> T { self[3] }
 }
 
-impl<T, const N: usize> Vector<T, N> {
+impl<T, const N: usize> Vector<N, T> {
   pub fn with<F>(mut f: F) -> Self
   where
     F: FnMut(usize) -> T, {
@@ -78,12 +79,12 @@ impl<T, const N: usize> Vector<T, N> {
   pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> { self.0.iter_mut() }
 }
 
-impl<T: Zero + Copy, const N: usize> Vector<T, N> {
+impl<T: Zero + Copy, const N: usize> Vector<N, T> {
   /// Zero-extend this vector to a larger vector.
   /// Must increase the size of the vector or keep it the same size.
-  pub fn zxtend<const M: usize>(&self) -> Vector<T, M> {
+  pub fn zxtend<const M: usize>(&self) -> Vector<M, T> {
     assert!(M >= N);
-    let mut out: Vector<T, M> = Vector::zero();
+    let mut out: Vector<M, T> = Vector::zero();
     for i in 0..N {
       out[i] = self[i];
     }
@@ -91,7 +92,7 @@ impl<T: Zero + Copy, const N: usize> Vector<T, N> {
   }
 }
 
-impl<T: Float, const N: usize> Vector<T, N> {
+impl<T: Float, const N: usize> Vector<N, T> {
   pub fn linspace(a: T, b: T) -> Self {
     let delta = (a - b) / (T::from(N).unwrap());
     Self::with(|i| a + delta * T::from(i).unwrap())
@@ -157,9 +158,9 @@ impl<T: Float, const N: usize> Vector<T, N> {
   pub fn dist(&self, o: &Self) -> T { (*self - *o).magn() }
   /// Shrink this vector to a lower dimension
   /// Must lower or keep the same size.
-  pub fn reduce<const M: usize>(&self) -> Vector<T, M> {
+  pub fn reduce<const M: usize>(&self) -> Vector<M, T> {
     assert!(M <= N);
-    let mut out: Vector<T, M> = Vector::zero();
+    let mut out: Vector<M, T> = Vector::zero();
     for i in 0..M {
       out[i] = self[i];
     }
@@ -183,13 +184,13 @@ impl<T: Float, const N: usize> Vector<T, N> {
     let similarity = self.magn() * self.dot(onto);
     onto.norm() * similarity
   }
-  pub fn col_vector(self) -> Matrix<T, N, 1> { Matrix(Vector([self])) }
-  pub fn row_vector(self) -> Matrix<T, 1, N> { self.col_vector().t() }
+  pub fn col_vector(self) -> Matrix<N, 1, T> { Matrix(Vector([self])) }
+  pub fn row_vector(self) -> Matrix<1, N, T> { self.col_vector().t() }
 
   /// Computes the bisector of two vectors = (a,b) => |a|*b + |b|*a;
   pub fn bisector(&self, o: &Self) -> Self { *self * o.magn() + *o * self.magn() }
   /// Convolves self with other, returning a vector of the same size
-  pub fn convolve<const M: usize>(&self, o: &Vector<T, M>) -> Self {
+  pub fn convolve<const M: usize>(&self, o: &Vector<M, T>) -> Self {
     let mut out: Self = Vector::zero();
     for i in 0..N {
       for j in 0..M {
@@ -202,10 +203,10 @@ impl<T: Float, const N: usize> Vector<T, N> {
   }
   pub fn scatter_fn<S: Copy, const M: usize>(
     &self,
-    idx: &Vector<usize, N>,
+    idx: &Vector<N, usize>,
     base: S,
     acc: impl Fn(S, T) -> S,
-  ) -> Vector<S, M> {
+  ) -> Vector<M, S> {
     let mut out = Vector::of(base);
     for i in 0..N {
       assert!(
@@ -218,7 +219,7 @@ impl<T: Float, const N: usize> Vector<T, N> {
   }
 }
 
-impl<const N: usize> Vector<bool, N> {
+impl<const N: usize> Vector<N, bool> {
   pub fn any(&self) -> bool { self.iter().any(|&l| l) }
   pub fn all(&self) -> bool { self.iter().all(|&l| l) }
 }
@@ -297,46 +298,46 @@ impl<T: Float> Vec4<T> {
 
 // Trait implementations for convenience
 
-impl<T, const N: usize> AsRef<[T]> for Vector<T, N> {
+impl<T, const N: usize> AsRef<[T]> for Vector<N, T> {
   fn as_ref(&self) -> &[T] { &self.0 }
 }
 
 // Op implementations
 
-impl<T: Float, const N: usize> One for Vector<T, N> {
+impl<T: Float, const N: usize> One for Vector<N, T> {
   fn one() -> Self { Vector([T::one(); N]) }
   fn is_one(&self) -> bool { self.iter().all(T::is_one) }
 }
 
-impl<T: Zero + Copy, const N: usize> Zero for Vector<T, N> {
+impl<T: Zero + Copy, const N: usize> Zero for Vector<N, T> {
   fn zero() -> Self { Vector([T::zero(); N]) }
   fn is_zero(&self) -> bool { self.iter().all(T::is_zero) }
 }
 
 use std::slice::SliceIndex;
-impl<R: SliceIndex<[T]>, T, const N: usize> Index<R> for Vector<T, N> {
+impl<R: SliceIndex<[T]>, T, const N: usize> Index<R> for Vector<N, T> {
   type Output = R::Output;
   fn index(&self, r: R) -> &Self::Output { &self.0[r] }
 }
 
-impl<R: SliceIndex<[T]>, T, const N: usize> IndexMut<R> for Vector<T, N> {
+impl<R: SliceIndex<[T]>, T, const N: usize> IndexMut<R> for Vector<N, T> {
   fn index_mut(&mut self, i: R) -> &mut Self::Output { &mut self.0[i] }
 }
 
-impl<T: Neg<Output = T> + Copy, const N: usize> Neg for Vector<T, N> {
+impl<T: Neg<Output = T> + Copy, const N: usize> Neg for Vector<N, T> {
   type Output = Self;
   fn neg(self) -> Self::Output { self.apply_fn(|v| -v) }
 }
 
-impl<T: Not<Output = T> + Copy, const N: usize> Not for Vector<T, N> {
+impl<T: Not<Output = T> + Copy, const N: usize> Not for Vector<N, T> {
   type Output = Self;
   fn not(self) -> Self::Output { self.apply_fn(|v| !v) }
 }
 
 macro_rules! vec_op {
   ($t: ident, $func: ident, $op: tt) => {
-    impl<T: $t + Copy, const N: usize> $t for Vector<T, N> {
-      type Output = Vector<T::Output, N>;
+    impl<T: $t + Copy, const N: usize> $t for Vector<N, T> {
+      type Output = Vector<N, T::Output>;
       fn $func(self, o: Self) -> Self::Output {
         let mut out: [MaybeUninit<T::Output>; N] = unsafe { MaybeUninit::uninit().assume_init() };
         for i in 0..N {
@@ -364,8 +365,8 @@ vec_op!(BitXor, bitxor, ^);
 
 macro_rules! scalar_op {
   ($t: ident, $func: ident, $op: tt) => {
-    impl<T: $t + Copy, const N: usize> $t<T> for Vector<T, N> {
-      type Output = Vector<T::Output, N>;
+    impl<T: $t + Copy, const N: usize> $t<T> for Vector<N, T> {
+      type Output = Vector<N, T::Output>;
       fn $func(self, o: T) -> Self::Output {
         let mut out: [MaybeUninit<T::Output>; N] = unsafe { MaybeUninit::uninit().assume_init() };
         for i in 0..N {
@@ -393,14 +394,14 @@ scalar_op!(BitXor, bitxor, ^);
 
 macro_rules! assign_op {
   ($t: ident, $func: ident, $op: tt) => {
-    impl<T: $t + Copy, const N: usize> $t<T> for Vector<T, N> {
+    impl<T: $t + Copy, const N: usize> $t<T> for Vector<N, T> {
       fn $func(&mut self, o: T) {
         for i in 0..N {
           self[i] $op o;
         }
       }
     }
-    impl<T: $t + Copy, const N: usize> $t for Vector<T, N> {
+    impl<T: $t + Copy, const N: usize> $t for Vector<N, T> {
       fn $func(&mut self, o: Self) {
         for i in 0..N {
           self[i] $op o[i];
@@ -444,7 +445,7 @@ macro_rules! curried_elemwise_impl {
     curried_elemwise_impl!($func, $call, stringify!($func));
   };
 }
-impl<T: Float, const N: usize> Vector<T, N> {
+impl<T: Float, const N: usize> Vector<N, T> {
   // Trigonometric stuff
   elemwise_impl!(
     cos, T::cos;
@@ -483,8 +484,8 @@ impl<T: Float, const N: usize> Vector<T, N> {
   );
   curried_elemwise_impl!(abs_sub, T::abs_sub);
 
-  pub fn is_sign_positive(&self) -> Vector<bool, N> { self.apply_fn(T::is_sign_positive) }
-  pub fn is_sign_negative(&self) -> Vector<bool, N> { self.apply_fn(T::is_sign_negative) }
+  pub fn is_sign_positive(&self) -> Vector<N, bool> { self.apply_fn(T::is_sign_positive) }
+  pub fn is_sign_negative(&self) -> Vector<N, bool> { self.apply_fn(T::is_sign_negative) }
 
   // Reciprocal
   elemwise_impl!(
@@ -520,7 +521,7 @@ impl<T: Float, const N: usize> Vector<T, N> {
 
 //// Trait Implementations for Vector below
 
-impl<T: Clone, const N: usize> Clone for Vector<T, N> {
+impl<T: Clone, const N: usize> Clone for Vector<N, T> {
   fn clone(&self) -> Self {
     let mut out: [MaybeUninit<T>; N] = unsafe { MaybeUninit::uninit().assume_init() };
     for i in 0..N {
@@ -537,27 +538,27 @@ impl<T: Clone, const N: usize> Clone for Vector<T, N> {
     }
   }
 }
-impl<T: Copy, const N: usize> Copy for Vector<T, N> {}
-impl<T: PartialOrd, const N: usize> PartialOrd for Vector<T, N> {
+impl<T: Copy, const N: usize> Copy for Vector<N, T> {}
+impl<T: PartialOrd, const N: usize> PartialOrd for Vector<N, T> {
   fn partial_cmp(&self, o: &Self) -> Option<Ordering> {
     PartialOrd::partial_cmp(&&self[..], &&o[..])
   }
 }
 
-impl<T: Ord, const N: usize> Ord for Vector<T, N> {
+impl<T: Ord, const N: usize> Ord for Vector<N, T> {
   fn cmp(&self, o: &Self) -> Ordering { Ord::cmp(&&self[..], &&o[..]) }
 }
 
-impl<T: Debug, const N: usize> Debug for Vector<T, N> {
+impl<T: Debug, const N: usize> Debug for Vector<N, T> {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     f.debug_list().entries(self.iter()).finish()
   }
 }
 
-impl<T: PartialEq, const N: usize> PartialEq for Vector<T, N> {
+impl<T: PartialEq, const N: usize> PartialEq for Vector<N, T> {
   fn eq(&self, o: &Self) -> bool { self.iter().zip(o.iter()).all(|(a, b)| a == b) }
 }
-impl<T: Eq, const N: usize> Eq for Vector<T, N> {}
+impl<T: Eq, const N: usize> Eq for Vector<N, T> {}
 
 #[test]
 fn example() {

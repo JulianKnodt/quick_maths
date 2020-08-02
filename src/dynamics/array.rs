@@ -21,11 +21,58 @@ impl<T: Zero> Array<T> {
   }
 }
 
+impl<T, const N: usize> From<[T; N]> for Array<T> {
+  fn from(data: [T; N]) -> Self {
+    Array {
+      shape: Box::new([N as u32]),
+      data: Box::new(data),
+    }
+  }
+}
+
+impl<T> From<T> for Array<T> {
+  fn from(v: T) -> Self { Self::just(v) }
+}
+
+/*
+pub struct ShapedIter<'a, T> {
+  idx: Box<[u32]>,
+  array: &'a Array<T>,
+}
+
+impl<'a, T> Iterator for ShapedIter<'a, T> {
+  type Item = (Box<[u32], &'a T);
+  fn next(&mut self) -> Option<Self::Item> {
+    let next = self.array.get(&self.idx)?;
+    for i in 0..self.array.shape.len() {
+      self.idx[i] += 1;
+      if self.idx[i] >= self.array.shape[i] {
+        self.idx[i] = 0;
+      } else {
+        break
+      }
+    }
+    Some((&self.idx, next))
+  }
+}
+
+// This is a good idea but requires stacking
+// impl<N: Into<Array<T>>, T, const N: usize> From<[N; N]>
+*/
+
 impl<T> Array<T> {
+  pub fn just(v: T) -> Self {
+    Self {
+      shape: Box::new([1]),
+      data: Box::new([v]),
+    }
+  }
+  pub fn new(data: impl Into<Self>) -> Self { data.into() }
   pub fn len(&self) -> u32 { self.shape.iter().product() }
   pub fn is_empty(&self) -> bool { self.shape.iter().any(|&v| v == 0) }
   pub fn reshape(&mut self, i: impl Into<Box<[u32]>>) {
     let shape = i.into();
+    assert!(shape.len() > 0, "Cannot reshape into empty array");
     assert_eq!(
       shape.iter().product::<u32>(),
       self.shape.iter().product(),
@@ -36,7 +83,13 @@ impl<T> Array<T> {
     self.shape = shape;
   }
   pub fn from_iter(shape: Box<[u32]>, data: impl IntoIterator<Item = T>) -> Self {
+    assert!(shape.len() > 0, "Cannot reshape into empty array");
     let data = data.into_iter().collect::<Vec<_>>().into_boxed_slice();
+    assert_eq!(
+      shape.iter().product::<u32>() as usize,
+      data.len(),
+      "Shape and data have different dimensions"
+    );
     Self { shape, data }
   }
   pub fn t(&mut self) { self.shape.reverse(); }
@@ -52,6 +105,7 @@ impl<T> Array<T> {
     }
     out
   }
+  pub fn get(&self, i: impl AsRef<[u32]>) -> Option<&T> { self.data.get(self.index(i) as usize) }
 }
 
 impl<T: Float> Array<T> {
@@ -69,7 +123,37 @@ impl<T: Float> Array<T> {
     }
     out
   }
-  // pub fn einsum_binary(l:
+  pub fn dot(&self, o: &Self) -> Self {
+    match (self.shape.len(), o.shape.len()) {
+      (1, 1) => {
+        assert_eq!(self.shape, o.shape, "Invalid dimensions for inner product");
+        Self::just(
+          self
+            .iter()
+            .zip(o.iter())
+            .fold(T::zero(), |acc, (&l, &r)| acc + l * r),
+        )
+      },
+      (2, 1) => {
+        assert_eq!(
+          self.shape[1], o.shape[0],
+          "Invalid dimensions for matrix-vector product",
+        );
+        let mut out = Self::zeros([self.shape[0]]);
+        for i in 0..self.shape[0] {
+          for j in 0..self.shape[1] {
+            out[[i]] = out[[i]] + self[[i, j]] * o[[j]];
+          }
+        }
+        out
+      },
+      (1, 2) => todo!(),
+      (0, _) | (_, 0) => panic!("Invalid arrays passed to dot"),
+      (_, _) => todo!(),
+    }
+  }
+  // TODO implement einstein summation notation (einsum)
+  // because it's a convenient way to represent things
 }
 
 impl<T, I: AsRef<[u32]>> Index<I> for Array<T> {

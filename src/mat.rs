@@ -10,16 +10,16 @@ use std::ops::{Add, Div, Index, IndexMut, Mul, Range, Sub};
 // TODO decide if matrix should be a type alias or a struct
 /// A matrix, where each vector represents a column
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Matrix<T = DefaultFloat, const M: usize, const N: usize>(pub Vector<Vector<T, M>, N>);
+pub struct Matrix<const M: usize, const N: usize, T = DefaultFloat>(pub Vector<N, Vector<M, T>>);
 
 /// 4x4 Matrix
-pub type Mat4<T = DefaultFloat> = Matrix<T, 4, 4>;
+pub type Mat4<T = DefaultFloat> = Matrix<4, 4, T>;
 /// 3x3 Matrix
-pub type Mat3<T = DefaultFloat> = Matrix<T, 3, 3>;
+pub type Mat3<T = DefaultFloat> = Matrix<3, 3, T>;
 /// 2x2 Matrix
-pub type Mat2<T = DefaultFloat> = Matrix<T, 2, 2>;
+pub type Mat2<T = DefaultFloat> = Matrix<2, 2, T>;
 
-impl<T, const M: usize, const N: usize> Matrix<T, M, N> {
+impl<T, const M: usize, const N: usize> Matrix<M, N, T> {
   /// Top-Bottom, Left-Right iterator.
   pub fn y_x_iter(&self) -> impl Iterator<Item = &T> + '_ {
     (self.0).0.iter().flat_map(|col| col.0.iter())
@@ -29,29 +29,29 @@ impl<T, const M: usize, const N: usize> Matrix<T, M, N> {
   pub fn x_y_iter(&self) -> impl Iterator<Item = &T> + '_ {
     (0..M).flat_map(move |y| (0..N).map(move |x| &self[x][y]))
   }
-  pub fn col_iter(&self) -> impl Iterator<Item = &Vector<T, M>> { self.0.iter() }
+  pub fn col_iter(&self) -> impl Iterator<Item = &Vector<M, T>> { self.0.iter() }
 }
 
-impl<T: Float, const M: usize, const N: usize> Matrix<T, M, N> {
-  pub fn dot(&self, vec: &Vector<T, N>) -> Vector<T, M> {
-    let mut out: Vector<T, M> = Vector::zero();
+impl<T: Float, const M: usize, const N: usize> Matrix<M, N, T> {
+  pub fn dot(&self, vec: &Vector<N, T>) -> Vector<M, T> {
+    let mut out: Vector<M, T> = Vector::zero();
     for i in 0..N {
       out = out + self[i] * vec[i];
     }
     out
   }
-  pub(crate) fn qdot<const Q: usize>(&self, vec: &Vector<T, Q>) -> Vector<T, M> {
+  pub(crate) fn qdot<const Q: usize>(&self, vec: &Vector<Q, T>) -> Vector<M, T> {
     // Check that Q is less than or equal to N.
     // We allow smaller values so we can multiply smaller vectors efficiently
     assert!(Q <= N);
-    let mut out: Vector<T, M> = Vector::zero();
+    let mut out: Vector<M, T> = Vector::zero();
     for i in 0..Q {
       out = out + self.0[i] * vec[i];
     }
     out
   }
-  pub fn t(&self) -> Matrix<T, N, M> {
-    let mut empty: Matrix<T, N, M> = Matrix::zero();
+  pub fn t(&self) -> Matrix<N, M, T> {
+    let mut empty: Matrix<N, M, T> = Matrix::zero();
     for y in 0..N {
       for x in 0..M {
         empty.0[y][x] = self.0[y][x];
@@ -60,8 +60,8 @@ impl<T: Float, const M: usize, const N: usize> Matrix<T, M, N> {
     empty
   }
   /// Performs naive matrix multiplication
-  pub fn matmul<const P: usize>(&self, o: &Matrix<T, N, P>) -> Matrix<T, M, P> {
-    let mut empty: Matrix<T, M, P> = Matrix::zero();
+  pub fn matmul<const P: usize>(&self, o: &Matrix<N, P, T>) -> Matrix<M, P, T> {
+    let mut empty: Matrix<M, P, T> = Matrix::zero();
     for i in 0..P {
       empty[i] = self.dot(&o[i]);
     }
@@ -79,31 +79,31 @@ impl<T: Float, const M: usize, const N: usize> Matrix<T, M, N> {
     assert!(b < N);
     (self.0).0.swap(a, b);
   }
-  pub fn apply_fn<F, S>(&self, f: F) -> Matrix<S, M, N>
+  pub fn apply_fn<F, S>(&self, f: F) -> Matrix<M, N, S>
   where
     F: FnMut(T) -> S + Copy,
     S: Float, {
-    let mut empty: Matrix<S, M, N> = Matrix::zero();
+    let mut empty: Matrix<M, N, S> = Matrix::zero();
     for i in 0..N {
       empty[i] = self[i].apply_fn(f);
     }
     empty
   }
   /// Zero extend this matrix to a larger size
-  pub fn zxtend<const I: usize, const J: usize>(&self) -> Matrix<T, I, J> {
+  pub fn zxtend<const I: usize, const J: usize>(&self) -> Matrix<I, J, T> {
     assert!(I >= M);
     assert!(J >= N);
-    let mut out: Matrix<T, I, J> = Matrix::zero();
+    let mut out: Matrix<I, J, T> = Matrix::zero();
     for i in 0..N {
       out[i] = self[i].zxtend();
     }
     out
   }
   /// Take some subset of this matrix(only takes from the topt left)
-  pub fn reduce<const I: usize, const J: usize>(&self) -> Matrix<T, I, J> {
+  pub fn reduce<const I: usize, const J: usize>(&self) -> Matrix<I, J, T> {
     assert!(I <= M);
     assert!(J <= N);
-    let mut out: Matrix<T, I, J> = Matrix::zero();
+    let mut out: Matrix<I, J, T> = Matrix::zero();
     for i in 0..J {
       out[i] = self[i].reduce();
     }
@@ -112,9 +112,9 @@ impl<T: Float, const M: usize, const N: usize> Matrix<T, M, N> {
   pub fn frobenius(&self) -> T { (self.0).0.iter().fold(T::zero(), |acc, n| acc + n.dot(n)) }
 }
 
-impl<T: Float, const M: usize> Matrix<T, M, M> {
+impl<T: Float, const M: usize> Matrix<M, M, T> {
   /// Creates a square matrix from a diagonal
-  pub fn from_diag(v: Vector<T, M>) -> Self {
+  pub fn from_diag(v: Vector<M, T>) -> Self {
     let mut out = Self::zero();
     for i in 0..M {
       out[i][i] = v[i];
@@ -128,8 +128,8 @@ impl<T: Float, const M: usize> Matrix<T, M, M> {
     (0..M).flat_map(move |i| (0..M).filter(move |&j| j != i).map(move |j| self[i][j]))
   }
   /// Identity extend this matrix to a larger size(ones along diagonal)
-  pub fn ixtend<const I: usize>(&self) -> Matrix<T, I, I> {
-    let mut out: Matrix<T, I, I> = self.zxtend();
+  pub fn ixtend<const I: usize>(&self) -> Matrix<I, I, T> {
+    let mut out: Matrix<I, I, T> = self.zxtend();
     for i in M..I {
       out[i][i] = T::one();
     }
@@ -157,8 +157,8 @@ impl<T: Float, const M: usize> Matrix<T, M, M> {
   }
   /// Given an upper triangular matrix and a vector, compute the solution to the system of
   /// equations
-  pub fn usolve(&self, b: &Vector<T, M>) -> Vector<T, M> {
-    let mut out: Vector<T, M> = Vector::zero();
+  pub fn usolve(&self, b: &Vector<M, T>) -> Vector<M, T> {
+    let mut out: Vector<M, T> = Vector::zero();
     for y in (0..M).rev() {
       let mut acc = b[y];
       for x in y + 1..M {
@@ -170,8 +170,8 @@ impl<T: Float, const M: usize> Matrix<T, M, M> {
   }
   /// Given a lower triangular matrix and a vector, compute the solution to the system of
   /// equations
-  pub fn lsolve(&self, b: &Vector<T, M>) -> Vector<T, M> {
-    let mut out: Vector<T, M> = Vector::zero();
+  pub fn lsolve(&self, b: &Vector<M, T>) -> Vector<M, T> {
+    let mut out: Vector<M, T> = Vector::zero();
     for y in 0..M {
       let mut acc = b[y];
       for x in 0..y.saturating_sub(1) {
@@ -182,12 +182,12 @@ impl<T: Float, const M: usize> Matrix<T, M, M> {
     out
   }
   /// Solves for x in the linear system Ax = b;
-  pub fn solve((l, u, p): &(Self, Self, Self), b: &Vector<T, M>) -> Vector<T, M> {
+  pub fn solve((l, u, p): &(Self, Self, Self), b: &Vector<M, T>) -> Vector<M, T> {
     u.usolve(&l.lsolve(&p.dot(b)))
   }
 }
 
-impl<T: Float, const M: usize, const N: usize> Zero for Matrix<T, M, N> {
+impl<T: Float, const M: usize, const N: usize> Zero for Matrix<M, N, T> {
   fn zero() -> Self { Matrix(Vector::of(Vector::zero())) }
   fn is_zero(&self) -> bool { (self.0).0.iter().all(|c| c.is_zero()) }
 }
@@ -319,7 +319,7 @@ impl<T: Float> Mat2<T> {
 }
 
 /// Multiplicative identity
-impl<T: Float, const M: usize> One for Matrix<T, M, M> {
+impl<T: Float, const M: usize> One for Matrix<M, M, T> {
   fn one() -> Self {
     let mut empty = Self::zero();
     for i in 0..M {
@@ -455,25 +455,25 @@ impl<T: Float> Mat4<T> {
   }
 }
 
-impl<T, const M: usize> Matrix<T, M, 1> {
-  pub fn squeeze(self) -> Vector<T, M> {
+impl<T, const M: usize> Matrix<M, 1, T> {
+  pub fn squeeze(self) -> Vector<M, T> {
     let Matrix(Vector([v])) = self;
     v
   }
 }
 
-impl<T, const M: usize, const N: usize> Index<usize> for Matrix<T, M, N> {
-  type Output = Vector<T, M>;
+impl<T, const M: usize, const N: usize> Index<usize> for Matrix<M, N, T> {
+  type Output = Vector<M, T>;
   fn index(&self, i: usize) -> &Self::Output { &self.0[i] }
 }
 
-impl<T, const M: usize, const N: usize> IndexMut<usize> for Matrix<T, M, N> {
+impl<T, const M: usize, const N: usize> IndexMut<usize> for Matrix<M, N, T> {
   fn index_mut(&mut self, i: usize) -> &mut Self::Output { &mut self.0[i] }
 }
 
 macro_rules! def_op {
   ($ty: ty, $func: ident, $op: tt) => {
-    impl<T: Float, const M: usize, const N: usize> $ty for Matrix<T, M, N>
+    impl<T: Float, const M: usize, const N: usize> $ty for Matrix<M, N, T>
     {
       type Output = Self;
       fn $func(mut self, o: Self) -> Self {
@@ -493,7 +493,7 @@ def_op!(Div, div, /);
 
 macro_rules! def_scalar_op {
   ($ty: ty, $func: ident, $op: tt) => {
-    impl<T: Float, const M: usize, const N: usize> $ty for Matrix<T, M, N> {
+    impl<T: Float, const M: usize, const N: usize> $ty for Matrix<M, N, T> {
       type Output = Self;
       fn $func(mut self, o: T) -> Self {
         for x in 0..N {
@@ -557,7 +557,7 @@ macro_rules! curried_elemwise_impl {
     curried_elemwise_impl!($func, $call, stringify!($func));
   };
 }
-impl<T: Float, const M: usize, const N: usize> Matrix<T, M, N> {
+impl<T: Float, const M: usize, const N: usize> Matrix<M, N, T> {
   // Trigonometric stuff
   elemwise_impl!(
     cos, T::cos;
