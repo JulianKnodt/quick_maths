@@ -1,6 +1,6 @@
 use crate::{
   num::Float,
-  vec::{Vec3, Vec4},
+  vec::{Vec3, Vec4, Vector},
 };
 
 /// Quats are Vec4's with implicit imaginary first three terms.
@@ -19,8 +19,7 @@ impl<T: Float> Quat<T> {
   /// Returns a quaternion which is a rotation in the 3 dimensions given
   pub fn rot(along: &Vec3<T>) -> Self {
     let two = T::one() + T::one();
-    let [cx, cy, cz] = along.apply_fn(|v| (v / two).cos()).0;
-    let [sx, sy, sz] = along.apply_fn(|v| (v / two).sin()).0;
+    let (Vector([sx, sy, sz]), Vector([cx, cy, cz])) = (*along / two).sin_cos();
     Quat::new(
       sx * cy * cz - cx * sy * sz,
       cx * sy * cz + sx * cy * sz,
@@ -30,8 +29,8 @@ impl<T: Float> Quat<T> {
   }
   // TODO investigate slerping
   pub fn quat_mul(self, o: Self) -> Self {
-    let [x, y, z, w] = self.0;
-    let [i, j, k, l] = o.0;
+    let Vector([x, y, z, w]) = self;
+    let Vector([i, j, k, l]) = o;
     Quat::new(
       w * i + l * x + y * k - z * j,
       w * j + l * y + z * i - k * x,

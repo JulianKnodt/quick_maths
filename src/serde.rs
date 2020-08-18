@@ -10,7 +10,7 @@ use std::{
   mem::{self, MaybeUninit},
 };
 
-impl<T, const N: usize> Serialize for Vector<T, N>
+impl<T, const N: usize> Serialize for Vector<N, T>
 where
   T: Serialize,
 {
@@ -23,7 +23,7 @@ where
   }
 }
 
-impl<T, const M: usize, const N: usize> Serialize for Matrix<T, M, N>
+impl<T, const M: usize, const N: usize> Serialize for Matrix<M, N, T>
 where
   T: Serialize,
 {
@@ -64,7 +64,7 @@ where
   }
 }
 
-impl<'de, T, const N: usize> Deserialize<'de> for Vector<T, N>
+impl<'de, T, const N: usize> Deserialize<'de> for Vector<N, T>
 where
   T: Deserialize<'de>,
 {
@@ -77,7 +77,7 @@ where
   }
 }
 
-impl<'de, T, const M: usize, const N: usize> Deserialize<'de> for Matrix<T, M, N>
+impl<'de, T, const M: usize, const N: usize> Deserialize<'de> for Matrix<M, N, T>
 where
   T: Deserialize<'de>,
 {

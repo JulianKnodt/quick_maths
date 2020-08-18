@@ -17,6 +17,7 @@ impl<const N: usize, T> Ray<N, T> {
   /// Returns a new ray with the given position and direction
   pub fn new(pos: Vector<N, T>, dir: Vector<N, T>) -> Self { Ray { pos, dir } }
 }
+
 impl<const N: usize, T: Float> Ray<N, T> {
   /// Returns the position along a ray that corresponds to some parameter T
   pub fn at(&self, t: T) -> Vector<N, T> { self.pos + self.dir * t }

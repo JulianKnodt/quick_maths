@@ -457,6 +457,10 @@ impl<T: Float, const N: usize> Vector<N, T> {
     asinh, T::asinh;
     atanh, T::atanh;
   );
+  pub fn sin_cos(&self) -> (Self, Self) {
+    let sscs = self.apply_fn(|u| u.sin_cos());
+    (Self::with(|i| sscs[i].0), Self::with(|i| sscs[i].1))
+  }
 
   curried_elemwise_impl!(atan2, T::atan2);
   curried_elemwise_impl!(hypot, T::hypot);
