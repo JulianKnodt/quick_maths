@@ -99,7 +99,12 @@ impl<T: Float> Transform4<T> {
     // do a couple of extra norm calls here, maybe can remove them but nice to be safe
     let right = dir.cross(&up.norm()).norm();
     let up = dir.cross(&right).norm();
-    let cam_to_world = Mat4::new(right.zxtend(), up.zxtend(), dir.zxtend(), pos.homogeneous());
+    let cam_to_world = Mat4::new(
+      right.extend(T::zero()),
+      up.extend(T::zero()),
+      dir.extend(T::zero()),
+      pos.homogeneous(),
+    );
     Self {
       bkwd: cam_to_world.inv(),
       fwd: cam_to_world,
@@ -134,8 +139,8 @@ impl<T: Float> Transform4<T> {
 impl<T: Float> Transform3<T> {
   pub fn scale(by: Vec2<T>) -> Self {
     Self {
-      fwd: Mat3::scale(&by.zxtend()),
-      bkwd: Mat3::scale(&by.recip().zxtend()),
+      fwd: Mat3::scale(&by.extend(T::zero())),
+      bkwd: Mat3::scale(&by.recip().extend(T::zero())),
     }
   }
   pub fn rot(theta: T) -> Self {

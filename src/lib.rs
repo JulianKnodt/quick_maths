@@ -1,10 +1,5 @@
 #![allow(incomplete_features)]
-#![feature(
-  const_generics,
-  const_generic_impls_guard,
-  maybe_uninit_uninit_array,
-  new_uninit
-)]
+#![feature(const_generics, maybe_uninit_uninit_array, new_uninit, array_map)]
 
 // Linear algebra modules
 /// Matrix definitions

@@ -2,8 +2,6 @@
 use crate::{num::DefaultFloat, Matrix};
 use num::{Float, One, Zero};
 use std::{
-  cmp::Ordering,
-  fmt::{self, Debug},
   mem::{forget, MaybeUninit},
   ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
@@ -13,6 +11,7 @@ use std::{
 
 /// Vector over floats and a const-size.
 /// Often used through Vec2, Vec3, and Vec4 instead of the raw struct.
+#[derive(Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Vector<const N: usize, T = DefaultFloat>(pub [T; N]);
 
 /// 2D vector with default float type (f32).
@@ -41,6 +40,7 @@ impl<T: Copy, const N: usize> Vector<N, T> {
     forget(out);
     Vector(res)
   }
+
   #[inline]
   pub fn fold<F, S>(self, init: S, mut f: F) -> S
   where
@@ -79,12 +79,12 @@ impl<T, const N: usize> Vector<N, T> {
   pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> { self.0.iter_mut() }
 }
 
-impl<T: Zero + Copy, const N: usize> Vector<N, T> {
-  /// Zero-extend this vector to a larger vector.
+impl<T: Copy, const N: usize> Vector<N, T> {
+  /// Extend this vector to a larger vector.
   /// Must increase the size of the vector or keep it the same size.
-  pub fn zxtend<const M: usize>(&self) -> Vector<M, T> {
+  pub fn extend<const M: usize>(&self, v: T) -> Vector<M, T> {
     assert!(M >= N);
-    let mut out: Vector<M, T> = Vector::zero();
+    let mut out: Vector<M, T> = Vector::of(v);
     for i in 0..N {
       out[i] = self[i];
     }
@@ -292,12 +292,11 @@ impl<T> Vec4<T> {
 impl<T: Float> Vec4<T> {
   pub fn homogenize(&self) -> Vec3<T> {
     let &Vector([x, y, z, w]) = self;
-    Vec3::new(x / w, y / w, z / w)
+    Vec3::new(x, y, z) / w
   }
 }
 
 // Trait implementations for convenience
-
 impl<T, const N: usize> AsRef<[T]> for Vector<N, T> {
   fn as_ref(&self) -> &[T] { &self.0 }
 }
@@ -335,65 +334,59 @@ impl<T: Not<Output = T> + Copy, const N: usize> Not for Vector<N, T> {
 }
 
 macro_rules! vec_op {
-  ($t: ident, $func: ident, $op: tt) => {
+  ($($t: ident, $func: ident, $op: tt;)*) => {
+    $(
     impl<T: $t + Copy, const N: usize> $t for Vector<N, T> {
       type Output = Vector<N, T::Output>;
       fn $func(self, o: Self) -> Self::Output {
-        let mut out: [MaybeUninit<T::Output>; N] = unsafe { MaybeUninit::uninit().assume_init() };
-        for i in 0..N {
-          out[i] = MaybeUninit::new(self[i] $op o[i]);
-        }
-        let ptr = &mut out as *mut _ as *mut [T::Output; N];
-        let res = unsafe { ptr.read() };
-        forget(out);
-        Vector(res)
+        Self::Output::with(|i| self[i] $op o[i])
       }
     }
+    )*
   };
 }
 
-vec_op!(Add, add, +);
-vec_op!(Mul, mul, *);
-vec_op!(Sub, sub, -);
-vec_op!(Div, div, /);
-vec_op!(Rem, rem, %);
+vec_op!(
+  Add, add, +;
+  Mul, mul, *;
+  Sub, sub, -;
+  Div, div, /;
+  Rem, rem, %;
 
-// Boolean operations
-vec_op!(BitAnd, bitand, &);
-vec_op!(BitOr, bitor, |);
-vec_op!(BitXor, bitxor, ^);
+  // Boolean operations
+  BitAnd, bitand, &;
+  BitOr, bitor, |;
+  BitXor, bitxor, ^;
+);
 
 macro_rules! scalar_op {
-  ($t: ident, $func: ident, $op: tt) => {
+  ($($t: ident, $func: ident, $op: tt;)*) => {
+    $(
     impl<T: $t + Copy, const N: usize> $t<T> for Vector<N, T> {
       type Output = Vector<N, T::Output>;
       fn $func(self, o: T) -> Self::Output {
-        let mut out: [MaybeUninit<T::Output>; N] = unsafe { MaybeUninit::uninit().assume_init() };
-        for i in 0..N {
-          out[i] = MaybeUninit::new(self[i] $op o);
-        }
-        let ptr = &mut out as *mut _ as *mut [T::Output; N];
-        let res = unsafe { ptr.read() };
-        forget(out);
-        Vector(res)
+        Self::Output::with(|i| self[i] $op o)
       }
     }
+    )*
   };
 }
+scalar_op!(
+  Add, add, +;
+  Mul, mul, *;
+  Sub, sub, -;
+  Div, div, /;
+  Rem, rem, %;
 
-scalar_op!(Add, add, +);
-scalar_op!(Mul, mul, *);
-scalar_op!(Sub, sub, -);
-scalar_op!(Div, div, /);
-scalar_op!(Rem, rem, %);
-
-// Boolean operations
-scalar_op!(BitAnd, bitand, &);
-scalar_op!(BitOr, bitor, |);
-scalar_op!(BitXor, bitxor, ^);
+  // Boolean operations
+  BitAnd, bitand, &;
+  BitOr, bitor, |;
+  BitXor, bitxor, ^;
+);
 
 macro_rules! assign_op {
-  ($t: ident, $func: ident, $op: tt) => {
+  ($( $t: ident, $func: ident, $op: tt; )* ) => {
+    $(
     impl<T: $t + Copy, const N: usize> $t<T> for Vector<N, T> {
       fn $func(&mut self, o: T) {
         for i in 0..N {
@@ -408,19 +401,22 @@ macro_rules! assign_op {
         }
       }
     }
+    )*
   };
 }
 
-assign_op!(AddAssign, add_assign, +=);
-assign_op!(SubAssign, sub_assign, -=);
-assign_op!(MulAssign, mul_assign, *=);
-assign_op!(DivAssign, div_assign, /=);
-assign_op!(RemAssign, rem_assign, %=);
+assign_op!(
+  AddAssign, add_assign, +=;
+  SubAssign, sub_assign, -=;
+  MulAssign, mul_assign, *=;
+  DivAssign, div_assign, /=;
+  RemAssign, rem_assign, %=;
 
-// Boolean operations
-assign_op!(BitAndAssign, bitand_assign, &=);
-assign_op!(BitOrAssign, bitor_assign, |=);
-assign_op!(BitXorAssign, bitxor_assign, ^=);
+  // boolean operations
+  BitAndAssign, bitand_assign, &=;
+  BitOrAssign, bitor_assign, |=;
+  BitXorAssign, bitxor_assign, ^=;
+);
 
 macro_rules! elemwise_impl {
   ($func: ident, $call: path, $name: expr) => {
@@ -439,6 +435,7 @@ macro_rules! curried_elemwise_impl {
     #[doc="Element-wise "]
     #[doc=$name]
     #[doc="."]
+    #[inline]
     pub fn $func(&self, v: T) -> Self { self.apply_fn(|u| $call(u, v)) }
   };
   ($func: ident, $call: path) => {
@@ -484,7 +481,9 @@ impl<T: Float, const N: usize> Vector<N, T> {
   );
   curried_elemwise_impl!(abs_sub, T::abs_sub);
 
+  #[inline]
   pub fn is_sign_positive(&self) -> Vector<N, bool> { self.apply_fn(T::is_sign_positive) }
+  #[inline]
   pub fn is_sign_negative(&self) -> Vector<N, bool> { self.apply_fn(T::is_sign_negative) }
 
   // Reciprocal
@@ -522,43 +521,13 @@ impl<T: Float, const N: usize> Vector<N, T> {
 //// Trait Implementations for Vector below
 
 impl<T: Clone, const N: usize> Clone for Vector<N, T> {
-  fn clone(&self) -> Self {
-    let mut out: [MaybeUninit<T>; N] = unsafe { MaybeUninit::uninit().assume_init() };
-    for i in 0..N {
-      out[i] = MaybeUninit::new(self[i].clone());
-    }
-    let ptr = &mut out as *mut _ as *mut [T; N];
-    let res = unsafe { ptr.read() };
-    forget(out);
-    Vector(res)
-  }
+  fn clone(&self) -> Self { Self::with(|i| self[i].clone()) }
   fn clone_from(&mut self, source: &Self) {
     for i in 0..N {
       self[i].clone_from(&source[i]);
     }
   }
 }
-impl<T: Copy, const N: usize> Copy for Vector<N, T> {}
-impl<T: PartialOrd, const N: usize> PartialOrd for Vector<N, T> {
-  fn partial_cmp(&self, o: &Self) -> Option<Ordering> {
-    PartialOrd::partial_cmp(&&self[..], &&o[..])
-  }
-}
-
-impl<T: Ord, const N: usize> Ord for Vector<N, T> {
-  fn cmp(&self, o: &Self) -> Ordering { Ord::cmp(&&self[..], &&o[..]) }
-}
-
-impl<T: Debug, const N: usize> Debug for Vector<N, T> {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    f.debug_list().entries(self.iter()).finish()
-  }
-}
-
-impl<T: PartialEq, const N: usize> PartialEq for Vector<N, T> {
-  fn eq(&self, o: &Self) -> bool { self.iter().zip(o.iter()).all(|(a, b)| a == b) }
-}
-impl<T: Eq, const N: usize> Eq for Vector<N, T> {}
 
 #[test]
 fn example() {

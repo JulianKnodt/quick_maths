@@ -1,10 +1,6 @@
 use crate::{
   num::{DefaultFloat, Float},
-  vec::{Vec3, Vector},
-};
-use std::{
-  marker::PhantomData,
-  ops::{Add, Mul, Neg},
+  vec::Vector,
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]

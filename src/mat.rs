@@ -95,7 +95,7 @@ impl<T: Float, const M: usize, const N: usize> Matrix<M, N, T> {
     assert!(J >= N);
     let mut out: Matrix<I, J, T> = Matrix::zero();
     for i in 0..N {
-      out[i] = self[i].zxtend();
+      out[i] = self[i].extend(T::zero());
     }
     out
   }
@@ -551,6 +551,7 @@ macro_rules! curried_elemwise_impl {
     #[doc="Element-wise "]
     #[doc=$name]
     #[doc="."]
+    #[inline]
     pub fn $func(&self, v: T) -> Self { self.apply_fn(|u| $call(u, v)) }
   };
   ($func: ident, $call: path) => {
