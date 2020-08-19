@@ -26,6 +26,9 @@ pub mod transform;
 #[doc(inline)]
 pub use transform::*;
 
+/// Auto-differentiation module
+pub mod autodiff;
+
 /// Convenience re-export of num-traits
 pub mod num;
 #[doc(inline)]
