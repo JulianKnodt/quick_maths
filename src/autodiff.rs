@@ -1,12 +1,6 @@
-use crate::{
-  num::{One, ScalarFloat, Zero},
-  Vector,
-};
+use crate::num::{One, ScalarFloat, Zero};
 use num::{Float, Num, NumCast, ToPrimitive};
 use std::cmp::Ordering;
-
-/// Represents a differentiable array
-pub type DiffArray<const N: usize> = Vector<N, Var>;
 
 static mut DEFAULT_TAPE: Tape = Tape::new();
 fn tape_mut() -> &'static mut Tape { unsafe { &mut DEFAULT_TAPE } }
@@ -15,7 +9,7 @@ fn tape() -> &'static Tape { unsafe { &DEFAULT_TAPE } }
 // TODO think about some way to optimize this for constants such that they don't need to be
 // added to the graph(possibly have an invalid value or make the usize optional?)
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub struct WeightedEdge(ScalarFloat, usize);
+pub struct WeightedEdge(ScalarFloat, NodeIdx);
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 enum Parents {
@@ -31,8 +25,8 @@ pub struct Tape {
   grads: Vec<ScalarFloat>,
 }
 
-/// Marker for indices into a tape
-pub type NodeIdx = usize;
+/// Marker for indices into a tape. u32 to save space.
+pub type NodeIdx = u32;
 
 impl Tape {
   pub const fn new() -> Self {
@@ -45,22 +39,23 @@ impl Tape {
     let idx = self.nodes.len();
     self.nodes.push(n);
     self.grads.push(0.0);
-    idx
+    idx as u32
   }
   /// Computes the gradient going backwards from this variable to all previous variables
   fn backwards(&mut self, start: NodeIdx) {
-    assert!(start > self.nodes.len());
-    self.grads[start] = 1.0;
+    assert!(start < self.nodes.len() as u32);
+    self.grads[start as usize] = 1.0;
     // because we only add items in order, we can propogate backwards
     // This might be slower than using a stack if there are a lot of irrelevant
     // calculations.
-    for i in (0..=start).rev() {
+    for i in (0u32..=start).rev() {
+      let i = i as usize;
       match self.nodes[i].parents {
         Parents::None => (),
-        Parents::One(WeightedEdge(w, n_i)) => self.grads[n_i] += w * self.grads[i],
+        Parents::One(WeightedEdge(w, n_i)) => self.grads[n_i as usize] += w * self.grads[i],
         Parents::Two(WeightedEdge(w0, i0), WeightedEdge(w1, i1)) => {
-          self.grads[i0] += w0 * self.grads[i];
-          self.grads[i1] += w1 * self.grads[i];
+          self.grads[i0 as usize] += w0 * self.grads[i];
+          self.grads[i1 as usize] += w1 * self.grads[i];
         },
       }
     }
@@ -96,7 +91,7 @@ impl Node {
 #[derive(Debug, Copy, Clone)]
 pub struct Var {
   v: ScalarFloat,
-  idx: usize,
+  idx: u32,
 }
 
 impl Var {
@@ -104,11 +99,11 @@ impl Var {
   // allocates a node on the tape and stores the idx
   pub fn new(v: ScalarFloat) -> Self { Self::new_w_idx(v, tape_mut().push_node(Node::new_root())) }
   /// Creates a new node with a given value and index
-  const fn new_w_idx(v: ScalarFloat, idx: usize) -> Self { Self { v, idx } }
-  fn create_unary(&self, w: ScalarFloat) -> usize {
+  const fn new_w_idx(v: ScalarFloat, idx: u32) -> Self { Self { v, idx } }
+  fn create_unary(&self, w: ScalarFloat) -> u32 {
     tape_mut().push_node(Node::new_unary(WeightedEdge(w, self.idx)))
   }
-  fn create_binary(&self, w: ScalarFloat, w_o: ScalarFloat, o_idx: usize) -> usize {
+  fn create_binary(&self, w: ScalarFloat, w_o: ScalarFloat, o_idx: u32) -> u32 {
     tape_mut().push_node(Node::new_binary(
       WeightedEdge(w, self.idx),
       WeightedEdge(w_o, o_idx),
@@ -119,11 +114,11 @@ impl Var {
 
   /// Returns the gradient of this variable w.r.t the variable that had backward most recently
   /// called on it.
-  pub fn grad_wrt(&self) -> ScalarFloat { tape().grads[self.idx] }
+  pub fn grad_wrt(&self) -> ScalarFloat { tape().grads[self.idx as usize] }
 
   /// Updates this variable with the gradient
   pub fn update(&mut self, update: impl Fn(ScalarFloat, ScalarFloat) -> ScalarFloat) {
-    self.v = update(self.v, tape().grads[self.idx]);
+    self.v = update(self.v, self.grad_wrt());
   }
 }
 
@@ -164,9 +159,10 @@ macro_rules! sqr {
   };
 }
 impl Num for Var {
-  type FromStrRadixErr = ();
-  fn from_str_radix(_s: &str, _radix: u32) -> Result<Self, Self::FromStrRadixErr> {
-    todo!();
+  type FromStrRadixErr = <ScalarFloat as Num>::FromStrRadixErr;
+  fn from_str_radix(s: &str, radix: u32) -> Result<Self, Self::FromStrRadixErr> {
+    let v = ScalarFloat::from_str_radix(s, radix)?;
+    Ok(Self::new(v))
   }
 }
 
@@ -357,6 +353,7 @@ impl_bin_const_op_grad!(Add<ScalarFloat>, add, +, grad(self, rhs) = 1.0);
 impl_bin_const_op_grad!(Sub<ScalarFloat>, sub, -, grad(self, rhs) = 1.0);
 impl_bin_const_op_grad!(Mul<ScalarFloat>, mul, *, grad(self, rhs) = rhs);
 impl_bin_const_op_grad!(Div<ScalarFloat>, div, /, grad(self, rhs) = rhs.recip());
+// TODO should fix this here maybe
 impl_bin_const_op_grad!(Rem<ScalarFloat>, rem, %, grad(self, rhs) = 0.0);
 
 impl std::ops::Neg for Var {
@@ -373,20 +370,17 @@ impl PartialOrd for Var {
 }
 
 impl Zero for Var {
-  fn zero() -> Self { Self::new(0.0) }
+  fn zero() -> Self { Self::new(ScalarFloat::zero()) }
   fn is_zero(&self) -> bool { self.v.is_zero() }
 }
 
 impl One for Var {
-  fn one() -> Self { Self::new(1.0) }
+  fn one() -> Self { Self::new(ScalarFloat::one()) }
   fn is_one(&self) -> bool { self.v.is_one() }
 }
 
 impl NumCast for Var {
-  fn from<T: ToPrimitive>(n: T) -> Option<Self> {
-    let v: ScalarFloat = NumCast::from(n)?;
-    Some(Self::new(v))
-  }
+  fn from<T: ToPrimitive>(n: T) -> Option<Self> { Some(Self::new(NumCast::from(n)?)) }
 }
 
 impl ToPrimitive for Var {
