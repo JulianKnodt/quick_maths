@@ -22,6 +22,14 @@ pub type Vec3<T = DefaultFloat> = Vector<3, T>;
 /// Often implicitly created by Vec3::homogeneous.
 pub type Vec4<T = DefaultFloat> = Vector<4, T>;
 
+impl<const N: usize> From<f32> for Vector<N, f32> {
+  fn from(v: f32) -> Self { Self::of(v) }
+}
+
+impl<const N: usize> From<f64> for Vector<N, f64> {
+  fn from(v: f64) -> Self { Self::of(v) }
+}
+
 impl<T: Copy, const N: usize> Vector<N, T> {
   /// Creates a vector of the value v (every element = v).
   pub fn of(v: T) -> Self { Vector([v; N]) }
@@ -194,11 +202,11 @@ impl<T: Float, const N: usize> Vector<N, T> {
   }
   pub fn scatter_fn<S: Copy, const M: usize>(
     &self,
+    out: impl Into<Vector<M, S>>,
     idx: &Vector<N, usize>,
-    base: S,
     acc: impl Fn(S, T) -> S,
   ) -> Vector<M, S> {
-    let mut out = Vector::of(base);
+    let mut out = out.into();
     for i in 0..N {
       assert!(
         idx[i] < M,
@@ -207,6 +215,21 @@ impl<T: Float, const N: usize> Vector<N, T> {
       out[idx[i]] = acc(out[i], self[i]);
     }
     out
+  }
+  pub fn gather<S: Copy, const M: usize>(
+    &mut self,
+    idx: &Vector<M, usize>,
+    from: &Vector<M, S>,
+    acc: impl Fn(T, S) -> T,
+  ) -> &mut Self {
+    for i in 0..M {
+      assert!(
+        idx[i] < M,
+        "Index in index vector larger than expected output"
+      );
+      self[i] = acc(self[i], from[idx[i]])
+    }
+    self
   }
 }
 
