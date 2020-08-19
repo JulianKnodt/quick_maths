@@ -6,7 +6,7 @@ use std::ops::Mul;
 /// i.e. rotation in 3D, translation, etc.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Transform<const N: usize, T = DefaultFloat> {
+pub struct Transform<T, const N: usize> {
   /// Forward transformation
   pub fwd: Matrix<N, N, T>,
   /// Inverted transformation
@@ -14,11 +14,11 @@ pub struct Transform<const N: usize, T = DefaultFloat> {
 }
 
 /// 3D transformation, where 4 represents the dimension of the matrix used.
-pub type Transform4<T = DefaultFloat> = Transform<4, T>;
+pub type Transform4<T = DefaultFloat> = Transform<T, 4>;
 /// 2D transformation, where 3 represents the dimension of the matrix used.
-pub type Transform3<T = DefaultFloat> = Transform<3, T>;
+pub type Transform3<T = DefaultFloat> = Transform<T, 3>;
 
-impl<T: Float, const N: usize> Transform<N, T> {
+impl<T: Float, const N: usize> Transform<T, N> {
   pub fn identity() -> Self {
     Self {
       fwd: Matrix::one(),
@@ -34,8 +34,8 @@ impl<T: Float, const N: usize> Transform<N, T> {
   }
 }
 
-impl<T: Float, const N: usize> Mul for Transform<N, T> {
-  type Output = Transform<N, T>;
+impl<T: Float, const N: usize> Mul for Transform<T, N> {
+  type Output = Self;
   fn mul(self, o: Self) -> Self::Output {
     Self::Output {
       fwd: self.fwd.matmul(&o.fwd),

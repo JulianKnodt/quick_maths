@@ -10,12 +10,20 @@ pub use num::{One, Zero};
 // These are the default scalars used throughout the library.
 cfg_if::cfg_if! {
   if #[cfg(feature="f64_default")] {
-    pub type DefaultFloat=f64;
+    /// Default Scalar float = f64
+    pub type ScalarFloat = f64;
   } else {
-    /// The default float used by all structures.
-    /// When constructing a vector and omitting the type, this will be used.
-    pub type DefaultFloat=f32;
+    /// Default Scalar float is f32
+    pub type ScalarFloat = f32;
   }
 }
 
-// TODO wrap scalars in some higher order type with compile flags.
+cfg_if::cfg_if! {
+  if #[cfg(feature="autodiff")] {
+    /// Enable auto differentiation in all structs
+    pub type DefaultFloat = crate::autodiff::Var;
+  } else {
+    /// No autodifferentiation is tracked.
+    pub type DefaultFloat = ScalarFloat;
+  }
+}

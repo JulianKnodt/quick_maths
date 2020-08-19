@@ -1,10 +1,11 @@
 use crate::{
   num::Float,
   vec::{Vec3, Vec4, Vector},
+  DefaultFloat,
 };
 
 /// Quats are Vec4's with implicit imaginary first three terms.
-pub type Quat<T> = Vec4<T>;
+pub type Quat<T = DefaultFloat> = Vec4<T>;
 
 impl<T: Float> Quat<T> {
   pub fn conj(mut self) -> Self {

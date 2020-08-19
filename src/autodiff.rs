@@ -1,5 +1,5 @@
 use crate::{
-  num::{DefaultFloat, One, Zero},
+  num::{One, ScalarFloat, Zero},
   Vector,
 };
 use num::{Float, Num, NumCast, ToPrimitive};
@@ -15,7 +15,7 @@ fn tape() -> &'static Tape { unsafe { &DEFAULT_TAPE } }
 // TODO think about some way to optimize this for constants such that they don't need to be
 // added to the graph(possibly have an invalid value or make the usize optional?)
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub struct WeightedEdge(DefaultFloat, usize);
+pub struct WeightedEdge(ScalarFloat, usize);
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 enum Parents {
@@ -28,7 +28,7 @@ enum Parents {
 /// and can be replaced by calling reset-tape.
 pub struct Tape {
   nodes: Vec<Node>,
-  grads: Vec<DefaultFloat>,
+  grads: Vec<ScalarFloat>,
 }
 
 /// Marker for indices into a tape
@@ -94,20 +94,20 @@ impl Node {
 /// A tracked variable which can be differentiated.
 #[derive(Debug, Copy, Clone)]
 pub struct Var {
-  v: DefaultFloat,
+  v: ScalarFloat,
   idx: usize,
 }
 
 impl Var {
   /// Creates an instance of a variable
   // allocates a node on the tape and stores the idx
-  pub fn new(v: DefaultFloat) -> Self { Self::new_w_idx(v, tape_mut().push_node(Node::new_root())) }
+  pub fn new(v: ScalarFloat) -> Self { Self::new_w_idx(v, tape_mut().push_node(Node::new_root())) }
   /// Creates a new node with a given value and index
-  const fn new_w_idx(v: DefaultFloat, idx: usize) -> Self { Self { v, idx } }
-  fn create_unary(&self, w: DefaultFloat) -> usize {
+  const fn new_w_idx(v: ScalarFloat, idx: usize) -> Self { Self { v, idx } }
+  fn create_unary(&self, w: ScalarFloat) -> usize {
     tape_mut().push_node(Node::new_unary(WeightedEdge(w, self.idx)))
   }
-  fn create_binary(&self, w: DefaultFloat, w_o: DefaultFloat, o_idx: usize) -> usize {
+  fn create_binary(&self, w: ScalarFloat, w_o: ScalarFloat, o_idx: usize) -> usize {
     tape_mut().push_node(Node::new_binary(
       WeightedEdge(w, self.idx),
       WeightedEdge(w_o, o_idx),
@@ -118,7 +118,7 @@ impl Var {
 
   /// Returns the gradient of this variable w.r.t the variable that had backward most recently
   /// called on it.
-  pub fn grad_wrt(&self) -> DefaultFloat { tape().grads[self.idx] }
+  pub fn grad_wrt(&self) -> ScalarFloat { tape().grads[self.idx] }
 }
 
 /// Implements a unary operation with a gradient
@@ -139,7 +139,7 @@ macro_rules! impl_bool {
 
 macro_rules! impl_value {
   ($( $func: ident$(,)* )*) => {
-    $( fn $func() -> Self { Self::new(DefaultFloat::$func()) } )*
+    $( fn $func() -> Self { Self::new(ScalarFloat::$func()) } )*
   };
 }
 
@@ -270,7 +270,7 @@ impl Float for Var {
 
   fn powi(self, exp: i32) -> Self {
     let val = self.v.powi(exp - 1);
-    Self::new_w_idx(val * self.v, self.create_unary(val * exp as DefaultFloat))
+    Self::new_w_idx(val * self.v, self.create_unary(val * exp as ScalarFloat))
   }
 
   impl_binary_grad!(
@@ -340,18 +340,18 @@ macro_rules! impl_bin_const_op_grad {
   ($type: ty, $func: ident, $op: tt, grad($l: ident, $r: ident) = $l_grad: expr) => {
     impl $type for Var {
       type Output = Var;
-      fn $func($l, $r: DefaultFloat) -> Self::Output {
+      fn $func($l, $r: ScalarFloat) -> Self::Output {
         Self::new_w_idx($l.v $op $r, $l.create_unary($l_grad))
       }
     }
   }
 }
 
-impl_bin_const_op_grad!(Add<DefaultFloat>, add, +, grad(self, rhs) = 1.0);
-impl_bin_const_op_grad!(Sub<DefaultFloat>, sub, -, grad(self, rhs) = 1.0);
-impl_bin_const_op_grad!(Mul<DefaultFloat>, mul, *, grad(self, rhs) = rhs);
-impl_bin_const_op_grad!(Div<DefaultFloat>, div, /, grad(self, rhs) = rhs.recip());
-impl_bin_const_op_grad!(Rem<DefaultFloat>, rem, %, grad(self, rhs) = 0.0);
+impl_bin_const_op_grad!(Add<ScalarFloat>, add, +, grad(self, rhs) = 1.0);
+impl_bin_const_op_grad!(Sub<ScalarFloat>, sub, -, grad(self, rhs) = 1.0);
+impl_bin_const_op_grad!(Mul<ScalarFloat>, mul, *, grad(self, rhs) = rhs);
+impl_bin_const_op_grad!(Div<ScalarFloat>, div, /, grad(self, rhs) = rhs.recip());
+impl_bin_const_op_grad!(Rem<ScalarFloat>, rem, %, grad(self, rhs) = 0.0);
 
 impl std::ops::Neg for Var {
   type Output = Self;
@@ -378,7 +378,7 @@ impl One for Var {
 
 impl NumCast for Var {
   fn from<T: ToPrimitive>(n: T) -> Option<Self> {
-    let v: DefaultFloat = NumCast::from(n)?;
+    let v: ScalarFloat = NumCast::from(n)?;
     Some(Self::new(v))
   }
 }

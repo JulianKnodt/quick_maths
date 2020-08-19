@@ -18,6 +18,7 @@ default_f64 = []
 mueller = []
 stokes = []
 masked = []
+autodiff = []
 
 [dependencies]
 num = "0.2.0"

@@ -41,16 +41,6 @@ impl<T: Copy, const N: usize> Vector<N, T> {
     Vector(res)
   }
 
-  #[inline]
-  pub fn fold<F, S>(self, init: S, mut f: F) -> S
-  where
-    F: FnMut(S, T) -> S, {
-    let mut curr = init;
-    for i in 0..N {
-      curr = f(curr, self[i]);
-    }
-    curr
-  }
   pub fn cast<S: From<T>>(self) -> Vector<N, S> { self.apply_fn(|v| v.into()) }
   /// X component of this vector, panics if out of range
   pub fn x(&self) -> T { self[0] }
@@ -98,6 +88,7 @@ impl<T: Float, const N: usize> Vector<N, T> {
     Self::with(|i| a + delta * T::from(i).unwrap())
   }
   /// Takes the dot product of two vectors
+  #[inline]
   pub fn dot(&self, o: &Self) -> T { (0..N).fold(T::zero(), |acc, n| acc + self[n] * o[n]) }
   /// Computes the sqr_magnitude of the vector
   pub fn sqr_magn(&self) -> T { self.dot(self) }
@@ -298,38 +289,46 @@ impl<T: Float> Vec4<T> {
 
 // Trait implementations for convenience
 impl<T, const N: usize> AsRef<[T]> for Vector<N, T> {
+  #[inline]
   fn as_ref(&self) -> &[T] { &self.0 }
 }
 
 // Op implementations
-
 impl<T: Float, const N: usize> One for Vector<N, T> {
+  #[inline]
   fn one() -> Self { Vector([T::one(); N]) }
+  #[inline]
   fn is_one(&self) -> bool { self.iter().all(T::is_one) }
 }
 
 impl<T: Zero + Copy, const N: usize> Zero for Vector<N, T> {
+  #[inline]
   fn zero() -> Self { Vector([T::zero(); N]) }
+  #[inline]
   fn is_zero(&self) -> bool { self.iter().all(T::is_zero) }
 }
 
 use std::slice::SliceIndex;
 impl<R: SliceIndex<[T]>, T, const N: usize> Index<R> for Vector<N, T> {
   type Output = R::Output;
+  #[inline]
   fn index(&self, r: R) -> &Self::Output { &self.0[r] }
 }
 
 impl<R: SliceIndex<[T]>, T, const N: usize> IndexMut<R> for Vector<N, T> {
+  #[inline]
   fn index_mut(&mut self, i: R) -> &mut Self::Output { &mut self.0[i] }
 }
 
 impl<T: Neg<Output = T> + Copy, const N: usize> Neg for Vector<N, T> {
   type Output = Self;
+  #[inline]
   fn neg(self) -> Self::Output { self.apply_fn(|v| -v) }
 }
 
 impl<T: Not<Output = T> + Copy, const N: usize> Not for Vector<N, T> {
   type Output = Self;
+  #[inline]
   fn not(self) -> Self::Output { self.apply_fn(|v| !v) }
 }
 
@@ -338,6 +337,7 @@ macro_rules! vec_op {
     $(
     impl<T: $t + Copy, const N: usize> $t for Vector<N, T> {
       type Output = Vector<N, T::Output>;
+      #[inline]
       fn $func(self, o: Self) -> Self::Output {
         Self::Output::with(|i| self[i] $op o[i])
       }
@@ -364,6 +364,7 @@ macro_rules! scalar_op {
     $(
     impl<T: $t + Copy, const N: usize> $t<T> for Vector<N, T> {
       type Output = Vector<N, T::Output>;
+      #[inline]
       fn $func(self, o: T) -> Self::Output {
         Self::Output::with(|i| self[i] $op o)
       }
@@ -388,6 +389,7 @@ macro_rules! assign_op {
   ($( $t: ident, $func: ident, $op: tt; )* ) => {
     $(
     impl<T: $t + Copy, const N: usize> $t<T> for Vector<N, T> {
+      #[inline]
       fn $func(&mut self, o: T) {
         for i in 0..N {
           self[i] $op o;
@@ -395,6 +397,7 @@ macro_rules! assign_op {
       }
     }
     impl<T: $t + Copy, const N: usize> $t for Vector<N, T> {
+      #[inline]
       fn $func(&mut self, o: Self) {
         for i in 0..N {
           self[i] $op o[i];
@@ -423,6 +426,7 @@ macro_rules! elemwise_impl {
     #[doc="Element-wise "]
     #[doc=$name]
     #[doc="."]
+    #[inline]
     pub fn $func(&self) -> Self { self.apply_fn($call) }
   };
   ($($func: ident, $call: path;)*) => {
@@ -457,6 +461,8 @@ impl<T: Float, const N: usize> Vector<N, T> {
     asinh, T::asinh;
     atanh, T::atanh;
   );
+
+  #[inline]
   pub fn sin_cos(&self) -> (Self, Self) {
     let sscs = self.apply_fn(|u| u.sin_cos());
     (Self::with(|i| sscs[i].0), Self::with(|i| sscs[i].1))
