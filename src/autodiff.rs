@@ -95,7 +95,6 @@ impl Node {
 #[derive(Debug, Copy, Clone)]
 pub struct Var {
   v: DefaultFloat,
-  /// Optional index, is None for constants
   idx: usize,
 }
 
@@ -182,7 +181,7 @@ impl Float for Var {
 
   fn classify(self) -> std::num::FpCategory { self.v.classify() }
   fn integer_decode(self) -> (u64, i16, i8) { self.v.integer_decode() }
-  // I could fuse this, but would require adding more complicated edges
+  // I could fuse this, but would require adding more complicated edges(3 parents)
   fn mul_add(self, mul: Self, add: Self) -> Self { (self * mul) + add }
 
   /// Taking the log w.r.t. an arbitrary base is currently unsupported
