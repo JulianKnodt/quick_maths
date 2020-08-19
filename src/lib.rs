@@ -29,6 +29,7 @@ pub use transform::*;
 /// Auto-differentiation module
 pub mod autodiff;
 pub use autodiff::Var;
+pub mod optimizers;
 
 /// Convenience re-export of num-traits
 pub mod num;

@@ -1,10 +1,14 @@
 # Quick Maths
 
+## Now with more gradients!
+
 - Important note: this package is designed for nightly with const-generics.
 
-A basic package for vector and matrix arithmetic which uses rust's unstable const generic
-feature. I just need something that does math conveniently and don't want to have to deal with
-NDArray or the like...
+A basic package for vector and matrix arithmetic which uses rust's const generic
+feature. It's intended use is graphics, but could work well with physics, games, etc.
+
+It also allows for backwards automatic differentiation by using an implicit Weingart tape(but is
+not yet safe for concurrent usage).
 
 This package is defined for ergonomic usage and efficiency.
 

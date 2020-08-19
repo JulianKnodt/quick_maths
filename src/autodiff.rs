@@ -65,6 +65,7 @@ impl Tape {
       }
     }
   }
+  /// Clear the gradients of the tape.
   pub fn clear_grads(&mut self) { self.grads.iter_mut().for_each(|v| *v = 0.0) }
 }
 
@@ -119,6 +120,11 @@ impl Var {
   /// Returns the gradient of this variable w.r.t the variable that had backward most recently
   /// called on it.
   pub fn grad_wrt(&self) -> ScalarFloat { tape().grads[self.idx] }
+
+  /// Updates this variable with the gradient
+  pub fn update(&mut self, update: impl Fn(ScalarFloat, ScalarFloat) -> ScalarFloat) {
+    self.v = update(self.v, tape().grads[self.idx]);
+  }
 }
 
 /// Implements a unary operation with a gradient
